@@ -6,7 +6,7 @@ import { theme } from "../../theme";
 
 const INITIAL = {
   name: "", dob: "", gender: "", class: "", roll: "",
-  guardian: "", contact: "", address: "", bloodGroup: "", fees: "Pending",
+  guardian: "", contact: "", address: "", bloodGroup: "", status: "ACTIVE",
 };
 
 export default function AddStudentForm({ onClose, onAdd }) {
@@ -33,7 +33,7 @@ export default function AddStudentForm({ onClose, onAdd }) {
     onAdd({
       ...form,
       id: "S" + String(Date.now()).slice(-4),
-      status: "Active",
+      status: "ACTIVE",
     });
     onClose();
   };
@@ -82,9 +82,9 @@ export default function AddStudentForm({ onClose, onAdd }) {
         {field("address", "Address", false,
           <TextInput value={form.address} onChange={set("address")} placeholder="Full residential address" />)}
 
-        {field("fees", "Fee Status", false,
-          <SelectInput value={form.fees} onChange={set("fees")}
-            options={["Paid", "Pending", "Overdue"]} />)}
+        {field("status", "Status", false,
+          <SelectInput value={form.fees} onChange={set("status")}
+            options={["INACTIVE", "ACTIVE"]} />)}
 
         <FormActions onCancel={onClose} submitLabel="Add Student" />
       </form>

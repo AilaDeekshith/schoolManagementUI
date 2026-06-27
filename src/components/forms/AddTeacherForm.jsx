@@ -6,7 +6,7 @@ import { theme } from "../../theme";
 
 const INITIAL = {
   name: "", subject: "", email: "", contact: "",
-  classes: "", exp: "", qualification: "", status: "Active",
+  classes: "", exp: "", qualification: "", status: "ACTIVE",
 };
 
 export default function AddTeacherForm({ onClose, onAdd }) {
@@ -72,7 +72,7 @@ export default function AddTeacherForm({ onClose, onAdd }) {
 
         {field("status", "Status", false,
           <SelectInput value={form.status} onChange={set("status")}
-            options={["Active", "On Leave", "Inactive"]} />)}
+            options={["ACTIVE", "ON_LEAVE", "INACTIVE"]} />)}
 
         <FormActions onCancel={onClose} submitLabel="Add Teacher" />
       </form>
