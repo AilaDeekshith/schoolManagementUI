@@ -4,7 +4,7 @@ import { theme } from "../theme";
 import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
-import { feesAPI, attendanceAPI } from "../api/apiService";
+import { feesAPI, attendanceAPI, examResultsAPI } from "../api/apiService";
 
 // ── helpers ──────────────────────────────────────────────────
 const mapFeeStatus = (s) =>
@@ -55,11 +55,12 @@ const ATTENDANCE_COLORS = {
 };
 
 export default function StudentProfile({ student, onBack }) {
-  const [feeHistory, setFeeHistory]       = useState([]);
+  const [feeHistory, setFeeHistory]         = useState([]);
   const [attendanceRecs, setAttendanceRecs] = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [attLoading, setAttLoading]       = useState(true);
-  const [error, setError]                 = useState(null);
+  const [examResults, setExamResults]       = useState([]);
+  const [loading, setLoading]               = useState(true);
+  const [attLoading, setAttLoading]         = useState(true);
+  const [error, setError]                   = useState(null);
 
   const fetchFeeHistory = useCallback(async () => {
     setLoading(true);
@@ -92,7 +93,10 @@ export default function StudentProfile({ student, onBack }) {
   useEffect(() => {
     fetchFeeHistory();
     fetchAttendance();
-  }, [fetchFeeHistory, fetchAttendance]);
+    examResultsAPI.getByStudent(student.id)
+      .then(data => setExamResults(data || []))
+      .catch(() => setExamResults([]));
+  }, [fetchFeeHistory, fetchAttendance, student.id]);
 
   const age = getAge(student.dob);
   const totalDue = feeHistory.reduce((sum, f) => sum + f.due, 0);
@@ -241,6 +245,45 @@ export default function StudentProfile({ student, onBack }) {
             ) : (
               <div style={{ color: theme.muted, fontSize: 13, padding: "12px 0" }}>No fee records found.</div>
             )
+          )}
+        </div>
+
+        {/* Exam Results — spans both columns */}
+        <div style={{ gridColumn: "1 / -1", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 14, padding: 22, boxShadow: "0 1px 8px #6C63FF08" }}>
+          <SectionTitle color="#A855F7">Exam Results</SectionTitle>
+          {examResults.length === 0 ? (
+            <div style={{ color: theme.muted, fontSize: 13 }}>No exam results recorded.</div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr>
+                  {["Exam","Date","Subject","Marks","Max","Grade","Remarks"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: theme.muted, fontSize: 10, letterSpacing: 1, fontWeight: 700, borderBottom: `1px solid ${theme.border}`, textTransform: "uppercase" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {examResults.map(r => {
+                  const gcfg = { "A+": "#059669", "A": "#10B981", "B": "#3B82F6", "C": "#F59E0B", "D": "#F97316", "F": "#EF4444" };
+                  const gc = gcfg[r.grade] || theme.muted;
+                  return (
+                    <tr key={r.id} style={{ borderBottom: `1px solid ${theme.border}55` }}>
+                      <td style={{ padding: "8px 10px", fontWeight: 600, color: theme.text }}>{r.exam?.name || "—"}</td>
+                      <td style={{ padding: "8px 10px", color: theme.muted }}>{r.exam?.examDate || "—"}</td>
+                      <td style={{ padding: "8px 10px", color: theme.accent, fontWeight: 600 }}>{r.subject}</td>
+                      <td style={{ padding: "8px 10px", fontWeight: 700, color: theme.text }}>{r.marksObtained ?? "—"}</td>
+                      <td style={{ padding: "8px 10px", color: theme.muted }}>{r.maxMarks}</td>
+                      <td style={{ padding: "8px 10px" }}>
+                        {r.grade ? (
+                          <span style={{ background: gc + "18", color: gc, border: `1px solid ${gc}44`, borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 800 }}>{r.grade}</span>
+                        ) : "—"}
+                      </td>
+                      <td style={{ padding: "8px 10px", color: theme.muted, fontSize: 12 }}>{r.remarks || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
 

@@ -7,6 +7,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddExamForm from "../components/forms/AddExamForm";
 import { examAPI, teacherAPI, configAPI } from "../api/apiService";
+import ExamMarks from "./ExamMarks";
 
 // ── helpers ───────────────────────────────────────────────────
 const statusLabel = (s) =>
@@ -21,7 +22,7 @@ const statusLabel = (s) =>
           : s;
 
 // ── Exam Card ─────────────────────────────────────────────────
-function ExamCard({ exam, onStatusChange, onEdit, onDelete }) {
+function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -106,7 +107,11 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete }) {
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+      <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
+        <button
+          onClick={() => onMarks(exam)}
+          style={{ flex: 2, background: "#f0f4ff", color: theme.accent, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+        >✏️ Enter Marks</button>
         <button
           onClick={() => onEdit(exam)}
           style={{ flex: 1, background: theme.blue + "15", color: theme.blue, border: `1px solid ${theme.blue}33`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
@@ -133,9 +138,10 @@ export default function Exams() {
   const [classOptions, setClassOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [addOpen, setAddOpen] = useState(false);
+  const [addOpen, setAddOpen]       = useState(false);
   const [editTarget, setEditTarget] = useState(null);
-  const [filter, setFilter] = useState("All");
+  const [marksExam, setMarksExam]   = useState(null);
+  const [filter, setFilter]         = useState("All");
 
   // ── Fetch ──────────────────────────────────────────────────
   const fetchData = async () => {
@@ -304,6 +310,7 @@ export default function Exams() {
                 onStatusChange={handleStatusChange}
                 onEdit={setEditTarget}
                 onDelete={handleDelete}
+                onMarks={setMarksExam}
               />
             ))}
           </div>
@@ -314,6 +321,9 @@ export default function Exams() {
       )}
       {editTarget && (
         <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} teachers={teachers} classOptions={classOptions} />
+      )}
+      {marksExam && (
+        <ExamMarks exam={marksExam} onClose={() => setMarksExam(null)} />
       )}
     </div>
   );

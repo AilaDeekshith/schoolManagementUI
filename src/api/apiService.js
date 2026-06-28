@@ -180,6 +180,15 @@ export const attendanceAPI = {
   getClassSummary: (className, from, to) => request("GET",   `/attendance/class/${encodeURIComponent(className)}/summary?from=${from}&to=${to}`),
 };
 
+export const examResultsAPI = {
+  saveBulk:        (data)                  => request("POST", "/exam-results/bulk", data),
+  getByExam:       (examId)                => request("GET",  `/exam-results/exam/${examId}`),
+  getByExamSubject:(examId, subject)       => request("GET",  `/exam-results/exam/${examId}/subject/${encodeURIComponent(subject)}`),
+  getByStudent:    (studentId)             => request("GET",  `/exam-results/student/${studentId}`),
+  getStudentExam:  (studentId, examId)     => request("GET",  `/exam-results/student/${studentId}/exam/${examId}`),
+  delete:          (id)                    => request("DELETE",`/exam-results/${id}`),
+};
+
 export const examAPI = {
   getAll:             ()           => request("GET",    "/exams"),
   getById:            (id)         => request("GET",    `/exams/${id}`),
