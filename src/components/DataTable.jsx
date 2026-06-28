@@ -1,7 +1,7 @@
 // components/DataTable.jsx
 import { theme } from "../theme";
 
-export default function DataTable({ columns, data }) {
+export default function DataTable({ columns, data, onRowClick }) {
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -30,10 +30,10 @@ export default function DataTable({ columns, data }) {
           {data.map((row, i) => (
             <tr
               key={i}
-              style={{ borderBottom: `1px solid ${theme.border}22`, cursor: "pointer", transition: "background 0.15s" }}
+              style={{ borderBottom: `1px solid ${theme.border}22`, cursor: onRowClick ? "pointer" : "default", transition: "background 0.15s" }}
               onMouseEnter={e => (e.currentTarget.style.background = theme.surface)}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              onClick={()=> columns?.map(c => c.label)?.includes('Roll No.') && alert(`Clicked on ${row.name}'s profile!`)}  // Example click handler for rows with 'Roll No.' column
+              onClick={() => onRowClick?.(row)}
             >
               {columns.map(col => (
                 <td key={col.key} style={{

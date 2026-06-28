@@ -6,7 +6,7 @@ import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddExamForm from "../components/forms/AddExamForm";
-import { examAPI, teacherAPI } from "../api/apiService";
+import { examAPI, teacherAPI, configAPI } from "../api/apiService";
 
 // ── helpers ───────────────────────────────────────────────────
 const statusLabel = (s) =>
@@ -21,7 +21,7 @@ const statusLabel = (s) =>
           : s;
 
 // ── Exam Card ─────────────────────────────────────────────────
-function ExamCard({ exam, onStatusChange }) {
+function ExamCard({ exam, onStatusChange, onEdit, onDelete }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -105,26 +105,23 @@ function ExamCard({ exam, onStatusChange }) {
           ))}
       </div>
 
-      {/* Mark complete button */}
-      {exam.status !== "Completed" && exam.status !== "Cancelled" && (
+      {/* Actions */}
+      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
         <button
-          onClick={() => onStatusChange(exam.id, "COMPLETED")}
-          style={{
-            marginTop: 14,
-            width: "100%",
-            background: theme.green + "18",
-            color: theme.green,
-            border: `1px solid ${theme.green}33`,
-            borderRadius: 8,
-            padding: "7px 0",
-            cursor: "pointer",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          ✓ Mark as Completed
-        </button>
-      )}
+          onClick={() => onEdit(exam)}
+          style={{ flex: 1, background: theme.blue + "15", color: theme.blue, border: `1px solid ${theme.blue}33`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+        >Edit</button>
+        {exam.status !== "Completed" && exam.status !== "Cancelled" && (
+          <button
+            onClick={() => onStatusChange(exam.id, "COMPLETED")}
+            style={{ flex: 1, background: theme.green + "18", color: theme.green, border: `1px solid ${theme.green}33`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+          >✓ Done</button>
+        )}
+        <button
+          onClick={() => onDelete(exam.id)}
+          style={{ flex: 1, background: theme.red + "12", color: theme.red, border: `1px solid ${theme.red}22`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+        >Delete</button>
+      </div>
     </div>
   );
 }
@@ -133,9 +130,11 @@ function ExamCard({ exam, onStatusChange }) {
 export default function Exams() {
   const [exams, setExams] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [classOptions, setClassOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [filter, setFilter] = useState("All");
 
   // ── Fetch ──────────────────────────────────────────────────
@@ -145,10 +144,14 @@ export default function Exams() {
     setError(null);
 
     try {
-      const [examData, teacherData] = await Promise.all([
+      const [examData, teacherData, gradeData] = await Promise.all([
         examAPI.getAll(),
         teacherAPI.getAll(),
+        configAPI.getGrades().catch(() => []),
       ]);
+      setClassOptions(gradeData.flatMap(g =>
+        (g.sections ?? []).map(s => `${g.name}-${s.letter}`)
+      ));
 
       setExams(
         examData.map((e) => ({
@@ -160,6 +163,7 @@ export default function Exams() {
           maxMarks: e.maxMarks,
           duration: e.duration,
           examiner: e.examinerName,
+          rawStatus: e.status,
           status: statusLabel(e.status),
         })),
       );
@@ -177,27 +181,46 @@ export default function Exams() {
     fetchData();
   }, []);
 
+  const toPayload = (formData, status = 'SCHEDULED') => ({
+    name: formData.name,
+    subject: formData.subject,
+    className: formData.class,
+    examDate: formData.date,
+    maxMarks: Number(formData.maxMarks),
+    duration: formData.duration,
+    instructions: formData.instructions,
+    status,
+    examinerId: formData.examiner ? teachers.find((t) => t.name === formData.examiner)?.id : null,
+  });
+
   // ── Add exam ────────────────────────────────────────────────
   const handleAdd = async (formData) => {
     try {
-      const examinerId = formData.examiner
-        ? teachers.find((t) => t.name === formData.examiner)?.id
-        : null;
-
-      await examAPI.create({
-        name: formData.name,
-        subject: formData.subject,
-        className: formData.class,
-        examDate: formData.date,
-        maxMarks: Number(formData.maxMarks),
-        duration: formData.duration,
-        instructions: formData.instructions,
-        status: 'SCHEDULED',
-        examinerId,
-      });
+      await examAPI.create(toPayload(formData));
       fetchData();
     } catch (err) {
       alert("Failed to schedule exam: " + err.message);
+    }
+  };
+
+  // ── Edit exam ───────────────────────────────────────────────
+  const handleEdit = async (formData) => {
+    try {
+      await examAPI.update(editTarget.id, toPayload(formData, editTarget.rawStatus ?? 'SCHEDULED'));
+      fetchData();
+    } catch (err) {
+      alert("Failed to update exam: " + err.message);
+    }
+  };
+
+  // ── Delete exam ─────────────────────────────────────────────
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this exam?")) return;
+    try {
+      await examAPI.delete(id);
+      setExams((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      alert("Failed to delete: " + err.message);
     }
   };
 
@@ -279,17 +302,18 @@ export default function Exams() {
                 key={e.id}
                 exam={e}
                 onStatusChange={handleStatusChange}
+                onEdit={setEditTarget}
+                onDelete={handleDelete}
               />
             ))}
           </div>
         ))}
 
       {addOpen && (
-        <AddExamForm
-          onClose={() => setAddOpen(false)}
-          onAdd={handleAdd}
-          teachers={teachers}
-        />
+        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} teachers={teachers} classOptions={classOptions} />
+      )}
+      {editTarget && (
+        <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} teachers={teachers} classOptions={classOptions} />
       )}
     </div>
   );

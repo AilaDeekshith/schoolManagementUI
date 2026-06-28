@@ -26,9 +26,9 @@ const PAYMENT_METHOD_MAP = {
 
 const toRow = (f) => ({
   id: f.id,
-  studentId: f.studentId,
-  name: f.studentName || "—",
-  class: f.studentClass || "—",
+  studentId: f.student?.id,
+  name: f.student?.name || "—",
+  class: f.student?.className || "—",
   total: Number(f.totalAmount || 0),
   paid: Number(f.paidAmount || 0),
   due: Number(f.dueAmount || 0),
@@ -74,18 +74,15 @@ export default function Fees() {
   }, []);
 
   // ── collect payment ────────────────────────────────────────
-  const handleCollect = async ({ studentId, amount, method, txnId }) => {
-    // Find the fee record id for this student
-    const record = fees.find((f) => f.studentId === studentId);
-    if (!record) return;
+  const handleCollect = async ({ feeId, amount, method, txnId }) => {
     try {
       await feesAPI.collectPayment(
-        record.id,
+        feeId,
         amount,
         PAYMENT_METHOD_MAP[method] || "CASH",
         txnId || null,
       );
-      fetchFees(); // refresh everything including summary
+      fetchFees();
     } catch (err) {
       alert("Payment failed: " + err.message);
     }

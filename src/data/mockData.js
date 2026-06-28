@@ -57,12 +57,14 @@ export const exams = [
 ];
 
 export const MODULES = [
-  { id: "dashboard",  label: "Dashboard",  icon: "⊞" },
-  { id: "students",   label: "Students",   icon: "🎓" },
-  { id: "teachers",   label: "Teachers",   icon: "👩‍🏫" },
-  { id: "admissions", label: "Admissions", icon: "📋" },
-  { id: "timetable",  label: "Timetable",  icon: "🗓" },
-  { id: "classes",    label: "Classes",    icon: "🏫" },
-  { id: "fees",       label: "Fees",       icon: "💳" },
-  { id: "exams",      label: "Exams",      icon: "📝" },
+  { id: "dashboard",     label: "Dashboard",     icon: "⊞" },
+  { id: "students",      label: "Students",      icon: "🎓" },
+  { id: "teachers",      label: "Teachers",      icon: "👩‍🏫" },
+  { id: "admissions",    label: "Admissions",    icon: "📋" },
+  { id: "attendance",    label: "Attendance",    icon: "✅" },
+  { id: "timetable",     label: "Timetable",     icon: "🗓" },
+  { id: "classes",       label: "Classes",       icon: "🏫" },
+  { id: "fees",          label: "Fees",          icon: "💳" },
+  { id: "exams",         label: "Exams",         icon: "📝" },
+  { id: "configuration", label: "Configuration", icon: "⚙️" },
 ];

@@ -4,26 +4,35 @@ import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
 
-const INITIAL = {
+const BLANK = {
   name: "", section: "", room: "",
   classTeacher: "", capacity: "", monitor: "",
 };
 
-// ── CHANGE: accept `teachers` prop instead of hardcoded TEACHER_OPTIONS ──
-export default function AddClassForm({ onClose, onAdd, teachers = [] }) {
-  const [form, setForm] = useState(INITIAL);
+// grades: [{ id, name, sections: [{ id, letter }] }]
+export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers = [], grades = [] }) {
+  const isEdit = !!initial;
+
+  const [form, setForm] = useState(isEdit ? {
+    name: initial.name ?? "",
+    section: initial.section ?? "",
+    room: initial.room ?? "",
+    classTeacher: initial.classTeacher === "—" ? "" : (initial.classTeacher ?? ""),
+    capacity: initial.capacity ? String(initial.capacity) : "",
+    monitor: initial.monitor === "—" ? "" : (initial.monitor ?? ""),
+  } : BLANK);
   const [errors, setErrors] = useState({});
 
-  const set = key => val => setForm(f => ({ ...f, [key]: val }));
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  // ── CHANGE: build teacher name options dynamically from the prop ──
+  const gradeNames = grades.map(g => g.name);
+  const sectionLetters = (grades.find(g => g.name === form.name)?.sections ?? []).map(s => s.letter);
   const teacherOptions = teachers.map(t => t.name);
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim())    e.name    = "Class name is required";
-    if (!form.section.trim()) e.section = "Section is required";
-    if (!form.room.trim())    e.room    = "Room number is required";
+    if (!form.name.trim()) e.name = "Grade is required";
+    if (!form.room.trim()) e.room = "Room number is required";
     return e;
   };
 
@@ -31,14 +40,9 @@ export default function AddClassForm({ onClose, onAdd, teachers = [] }) {
     e.preventDefault();
     const e2 = validate();
     if (Object.keys(e2).length) { setErrors(e2); return; }
-    onAdd({
-      name: `${form.name}-${form.section}`,
-      room: form.room,
-      classTeacher: form.classTeacher || "—",
-      strength: 0,
-      monitor: form.monitor || "—",
-      capacity: form.capacity,
-    });
+    const combinedName = form.section ? `${form.name}-${form.section}` : form.name;
+    if (isEdit) onEdit({ ...form, combinedName });
+    else        onAdd({ ...form, name: combinedName });
     onClose();
   };
 
@@ -50,34 +54,43 @@ export default function AddClassForm({ onClose, onAdd, teachers = [] }) {
   );
 
   return (
-    <Modal title="Add New Class" onClose={onClose}>
+    <Modal title={isEdit ? "Edit Class" : "Add New Class"} onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <FormRow>
-          {field("name", "Class / Grade", true,
-            <SelectInput value={form.name} onChange={set("name")} placeholder="Select grade"
-              options={["1","2","3","4","5","6","7","8","9","10","11","12"]} />)}
-          {field("section", "Section", true,
-            <SelectInput value={form.section} onChange={set("section")} placeholder="Select section"
-              options={["A","B","C","D","E"]} />)}
+          {field("name", "Grade", true,
+            <SelectInput
+              value={form.name}
+              onChange={v => { set("name", v); set("section", ""); }}
+              placeholder="Select grade"
+              options={gradeNames.length ? gradeNames : ["1","2","3","4","5","6","7","8","9","10","11","12"]}
+            />
+          )}
+          {field("section", "Section", false,
+            <SelectInput
+              value={form.section}
+              onChange={v => set("section", v)}
+              placeholder={sectionLetters.length ? "Select section" : "— no sections configured —"}
+              options={sectionLetters.length ? sectionLetters : ["A","B","C","D","E"]}
+            />
+          )}
         </FormRow>
 
         <FormRow>
           {field("room", "Room Number", true,
-            <TextInput value={form.room} onChange={set("room")} placeholder="e.g. 201" />)}
+            <TextInput value={form.room} onChange={v => set("room", v)} placeholder="e.g. 201" />)}
           {field("capacity", "Max Capacity", false,
-            <TextInput type="number" value={form.capacity} onChange={set("capacity")} placeholder="e.g. 40" />)}
+            <TextInput type="number" value={form.capacity} onChange={v => set("capacity", v)} placeholder="e.g. 40" />)}
         </FormRow>
 
-        {/* ── CHANGE: options now come from live teachers prop ── */}
         {field("classTeacher", "Class Teacher", false,
-          <SelectInput value={form.classTeacher} onChange={set("classTeacher")}
+          <SelectInput value={form.classTeacher} onChange={v => set("classTeacher", v)}
             placeholder="Select a teacher"
             options={teacherOptions} />)}
 
         {field("monitor", "Class Monitor", false,
-          <TextInput value={form.monitor} onChange={set("monitor")} placeholder="Student's full name" />)}
+          <TextInput value={form.monitor} onChange={v => set("monitor", v)} placeholder="Student's full name" />)}
 
-        <FormActions onCancel={onClose} submitLabel="Create Class" />
+        <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Class" : "Create Class"} />
       </form>
     </Modal>
   );

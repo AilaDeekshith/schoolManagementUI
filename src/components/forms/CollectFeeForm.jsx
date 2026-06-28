@@ -15,7 +15,7 @@ export default function CollectFeeForm({ student, onClose, onCollect }) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) { setError("Enter a valid amount"); return; }
     if (Number(amount) > student.due)   { setError(`Cannot exceed due amount ₹${student.due.toLocaleString()}`); return; }
-    onCollect({ studentId: student.id, amount: Number(amount), method, txnId, date });
+    onCollect({ feeId: student.id, amount: Number(amount), method, txnId, date });
     onClose();
   };
 
@@ -51,7 +51,7 @@ export default function CollectFeeForm({ student, onClose, onCollect }) {
         <FormRow>
           <FormField label="Payment Method">
             <SelectInput value={method} onChange={setMethod}
-              options={["Cash","Cheque","Online Transfer","UPI","DD"]} />
+              options={["Cash","Cheque","Online Transfer","UPI","Demand Draft"]} />
           </FormField>
           <FormField label="Transaction / Receipt ID">
             <TextInput value={txnId} onChange={setTxnId} placeholder="e.g. UPI12345678" />

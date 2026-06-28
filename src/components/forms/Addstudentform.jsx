@@ -4,13 +4,25 @@ import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
 
-const INITIAL = {
+const BLANK = {
   name: "", dob: "", gender: "", class: "", roll: "",
   guardian: "", contact: "", address: "", bloodGroup: "", status: "ACTIVE",
 };
 
-export default function AddStudentForm({ onClose, onAdd }) {
-  const [form, setForm] = useState(INITIAL);
+export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classOptions = [] }) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState(isEdit ? {
+    name: initial.name ?? "",
+    dob: initial.dob ?? "",
+    gender: initial.gender ?? "",
+    class: initial.class ?? "",
+    roll: initial.roll ?? "",
+    guardian: initial.guardian ?? "",
+    contact: initial.contact ?? "",
+    address: initial.address ?? "",
+    bloodGroup: initial.bloodGroup ?? "",
+    status: initial.status === "Active" ? "ACTIVE" : initial.status === "Inactive" ? "INACTIVE" : (initial.status ?? "ACTIVE"),
+  } : BLANK);
   const [errors, setErrors] = useState({});
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }));
@@ -30,11 +42,8 @@ export default function AddStudentForm({ onClose, onAdd }) {
     e.preventDefault();
     const e2 = validate();
     if (Object.keys(e2).length) { setErrors(e2); return; }
-    onAdd({
-      ...form,
-      id: "S" + String(Date.now()).slice(-4),
-      status: "ACTIVE",
-    });
+    if (isEdit) onEdit(form);
+    else        onAdd(form);
     onClose();
   };
 
@@ -46,7 +55,7 @@ export default function AddStudentForm({ onClose, onAdd }) {
   );
 
   return (
-    <Modal title="Add New Student" onClose={onClose}>
+    <Modal title={isEdit ? "Edit Student" : "Add New Student"} onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <FormRow>
           {field("name", "Full Name", true,
@@ -61,7 +70,7 @@ export default function AddStudentForm({ onClose, onAdd }) {
               options={["Male", "Female", "Other"]} />)}
           {field("class", "Class", true,
             <SelectInput value={form.class} onChange={set("class")} placeholder="Select class"
-              options={["6-A","6-B","7-A","7-B","7-C","8-A","8-B","9-A","9-B","10-A","10-B"]} />)}
+              options={classOptions.length ? classOptions : ["6-A","6-B","7-A","7-B","7-C","8-A","8-B","9-A","9-B","10-A","10-B"]} />)}
         </FormRow>
 
         <FormRow>
@@ -83,10 +92,10 @@ export default function AddStudentForm({ onClose, onAdd }) {
           <TextInput value={form.address} onChange={set("address")} placeholder="Full residential address" />)}
 
         {field("status", "Status", false,
-          <SelectInput value={form.fees} onChange={set("status")}
-            options={["INACTIVE", "ACTIVE"]} />)}
+          <SelectInput value={form.status} onChange={set("status")}
+            options={["ACTIVE", "INACTIVE"]} />)}
 
-        <FormActions onCancel={onClose} submitLabel="Add Student" />
+        <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Student" : "Add Student"} />
       </form>
     </Modal>
   );

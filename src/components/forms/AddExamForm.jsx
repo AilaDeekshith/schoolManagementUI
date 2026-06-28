@@ -4,20 +4,27 @@ import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, TextareaInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
 
-const INITIAL = {
+const BLANK = {
   name: "", subject: "", class: "All",
   date: "", maxMarks: "", duration: "",
   examiner: "", instructions: "",
 };
 
-// ── CHANGE: accept `teachers` prop for the examiner dropdown ──
-export default function AddExamForm({ onClose, onAdd, teachers = [] }) {
-  const [form, setForm] = useState(INITIAL);
+export default function AddExamForm({ onClose, onAdd, onEdit, initial, teachers = [], classOptions = [] }) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState(isEdit ? {
+    name: initial.name ?? "",
+    subject: initial.subject ?? "",
+    class: initial.class ?? "All",
+    date: initial.date ?? "",
+    maxMarks: initial.maxMarks ? String(initial.maxMarks) : "",
+    duration: initial.duration ?? "",
+    examiner: initial.examiner ?? "",
+    instructions: initial.instructions ?? "",
+  } : BLANK);
   const [errors, setErrors] = useState({});
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }));
-
-  // ── CHANGE: build examiner options dynamically from the prop ──
   const teacherOptions = ["", ...teachers.map(t => t.name)];
 
   const validate = () => {
@@ -33,12 +40,8 @@ export default function AddExamForm({ onClose, onAdd, teachers = [] }) {
     e.preventDefault();
     const e2 = validate();
     if (Object.keys(e2).length) { setErrors(e2); return; }
-    onAdd({
-      ...form,
-      id: "E" + String(Date.now()).slice(-3),
-      status: "Scheduled",
-      maxMarks: Number(form.maxMarks),
-    });
+    if (isEdit) onEdit({ ...form, maxMarks: Number(form.maxMarks) });
+    else        onAdd({ ...form, maxMarks: Number(form.maxMarks) });
     onClose();
   };
 
@@ -50,7 +53,7 @@ export default function AddExamForm({ onClose, onAdd, teachers = [] }) {
   );
 
   return (
-    <Modal title="Schedule New Exam" onClose={onClose}>
+    <Modal title={isEdit ? "Edit Exam" : "Schedule New Exam"} onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <FormRow>
           {field("name", "Exam Name", true,
@@ -65,7 +68,7 @@ export default function AddExamForm({ onClose, onAdd, teachers = [] }) {
             <TextInput type="date" value={form.date} onChange={set("date")} />)}
           {field("class", "For Class", false,
             <SelectInput value={form.class} onChange={set("class")}
-              options={["All","6-A","6-B","7-A","7-B","7-C","8-A","8-B","9-A","9-B","10-A","10-B"]} />)}
+              options={["All", ...(classOptions.length ? classOptions : ["6-A","6-B","7-A","7-B","7-C","8-A","8-B","9-A","9-B","10-A","10-B"])]} />)}
         </FormRow>
 
         <FormRow>
@@ -75,7 +78,6 @@ export default function AddExamForm({ onClose, onAdd, teachers = [] }) {
             <TextInput value={form.duration} onChange={set("duration")} placeholder="e.g. 3 hours" />)}
         </FormRow>
 
-        {/* ── CHANGE: SelectInput with live teacher names instead of plain TextInput ── */}
         {field("examiner", "Examiner / Invigilator", false,
           <SelectInput value={form.examiner} onChange={set("examiner")}
             placeholder="Select a teacher"
@@ -85,7 +87,7 @@ export default function AddExamForm({ onClose, onAdd, teachers = [] }) {
           <TextareaInput value={form.instructions} onChange={set("instructions")}
             placeholder="Any special instructions for students…" rows={3} />)}
 
-        <FormActions onCancel={onClose} submitLabel="Schedule Exam" />
+        <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Exam" : "Schedule Exam"} />
       </form>
     </Modal>
   );

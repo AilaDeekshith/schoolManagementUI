@@ -8,7 +8,8 @@ import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddStudentForm from "../components/forms/Addstudentform";
-import { studentAPI } from "../api/apiService";
+import StudentProfile from "./StudentProfile";
+import { studentAPI, configAPI } from "../api/apiService";
 import { theme } from "../theme";
 
 // ── helpers ───────────────────────────────────────────────────
@@ -34,10 +35,13 @@ const toRow = (s) => ({
 
 export default function Students() {
   const [students, setStudents] = useState([]);
+  const [classOptions, setClassOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [selected, setSelected] = useState(null);
 
   // ── fetch ──────────────────────────────────────────────────
   const fetchStudents = async () => {
@@ -56,26 +60,43 @@ export default function Students() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStudents();
+    configAPI.getGrades().then(grades => {
+      setClassOptions(grades.flatMap(g =>
+        (g.sections ?? []).map(s => `${g.name}-${s.letter}`)
+      ));
+    }).catch(() => {});
   }, []);
+
+  const toPayload = (formData) => ({
+    name: formData.name,
+    dob: formData.dob,
+    gender: formData.gender,
+    bloodGroup: formData.bloodGroup || null,
+    address: formData.address || null,
+    className: formData.class,
+    rollNumber: formData.roll ? Number(formData.roll) : null,
+    guardianName: formData.guardian,
+    contactNumber: formData.contact,
+    status: formData.status || 'ACTIVE',
+  });
 
   // ── add ────────────────────────────────────────────────────
   const handleAdd = async (formData) => {
     try {
-      await studentAPI.create({
-        name: formData.name,
-        dob: formData.dob,
-        gender: formData.gender,
-        bloodGroup: formData.bloodGroup || null,
-        address: formData.address || null,
-        className: formData.class,
-        rollNumber: formData.roll ? Number(formData.roll) : null,
-        guardianName: formData.guardian,
-        contactNumber: formData.contact,
-        status: formData.status || 'ACTIVE'
-      });
+      await studentAPI.create(toPayload(formData));
       fetchStudents();
     } catch (err) {
       alert("Failed to add student: " + err.message);
+    }
+  };
+
+  // ── edit ───────────────────────────────────────────────────
+  const handleEdit = async (formData) => {
+    try {
+      await studentAPI.update(editTarget.id, toPayload(formData));
+      fetchStudents();
+    } catch (err) {
+      alert("Failed to update student: " + err.message);
     }
   };
 
@@ -116,24 +137,25 @@ export default function Students() {
       key: "actions",
       label: "Actions",
       render: (_, row) => (
-        <button
-          onClick={() => handleDelete(row.id)}
-          style={{
-            background: theme.red + "18",
-            color: theme.red,
-            border: `1px solid ${theme.red}33`,
-            borderRadius: 6,
-            padding: "3px 10px",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 700,
-          }}
-        >
-          Delete
-        </button>
+        <div style={{ display: "flex", gap: 5 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditTarget(row); }}
+            style={{ background: theme.blue + "15", color: theme.blue, border: `1px solid ${theme.blue}33`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+          >Edit</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDelete(row.id); }}
+            style={{ background: theme.red + "18", color: theme.red, border: `1px solid ${theme.red}33`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+          >Delete</button>
+        </div>
       ),
     },
   ];
+
+  if (selected) {
+    return (
+      <StudentProfile student={selected} onBack={() => setSelected(null)} />
+    );
+  }
 
   return (
     <div>
@@ -152,7 +174,13 @@ export default function Students() {
       <CardWrapper>
         {loading && <LoadingSpinner message="Loading students…" />}
         {error && <ErrorMessage message={error} onRetry={fetchStudents} />}
-        {!loading && !error && <DataTable columns={columns} data={filtered} />}
+        {!loading && !error && (
+          <DataTable
+            columns={columns}
+            data={filtered}
+            onRowClick={setSelected}
+          />
+        )}
       </CardWrapper>
 
       {!loading && !error && (
@@ -169,7 +197,10 @@ export default function Students() {
       )}
 
       {addOpen && (
-        <AddStudentForm onClose={() => setAddOpen(false)} onAdd={handleAdd} />
+        <AddStudentForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} />
+      )}
+      {editTarget && (
+        <AddStudentForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} />
       )}
     </div>
   );

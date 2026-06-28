@@ -8,7 +8,7 @@ import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddAdmissionForm from "../components/forms/AddAdmissionForm";
-import { admissionAPI } from "../api/apiService";
+import { admissionAPI, configAPI } from "../api/apiService";
 
 // ── helpers ───────────────────────────────────────────────────
 const FILTERS = ["All", "Approved", "Pending", "Under Review", "Rejected"];
@@ -41,10 +41,12 @@ const toRow = (a) => ({
 // ── Page ──────────────────────────────────────────────────────
 export default function Admissions() {
   const [admissions, setAdmissions] = useState([]);
+  const [classOptions, setClassOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
 
   // ── fetch ──────────────────────────────────────────────────
   const fetchAdmissions = async () => {
@@ -61,27 +63,43 @@ export default function Admissions() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAdmissions();
+    configAPI.getGrades().then(grades => {
+      setClassOptions(grades.flatMap(g =>
+        (g.sections ?? []).map(s => `${g.name}-${s.letter}`)
+      ));
+    }).catch(() => {});
   }, []);
+
+  const toPayload = (formData) => ({
+    applicantName: formData.name,
+    dob: formData.dob || null,
+    gender: formData.gender || null,
+    applyClass: formData.applyClass,
+    guardianName: formData.guardian,
+    contactNumber: formData.contact,
+    guardianEmail: formData.email || null,
+    prevSchool: formData.prevSchool || null,
+    reason: formData.reason || null,
+  });
 
   // ── add ────────────────────────────────────────────────────
   const handleAdd = async (formData) => {
     try {
-      await admissionAPI.create({
-        applicantName: formData.name,
-        dob: formData.dob || null,
-        gender: formData.gender || null,
-        applyClass: formData.applyClass,
-        guardianName: formData.guardian,
-        contactNumber: formData.contact,
-        guardianEmail: formData.email || null,
-        prevSchool: formData.prevSchool || null,
-        reason: formData.reason || null,
-      });
+      await admissionAPI.create(toPayload(formData));
       fetchAdmissions();
     } catch (err) {
       alert("Failed to submit application: " + err.message);
+    }
+  };
+
+  // ── edit ───────────────────────────────────────────────────
+  const handleEdit = async (formData) => {
+    try {
+      await admissionAPI.update(editTarget.id, toPayload(formData));
+      fetchAdmissions();
+    } catch (err) {
+      alert("Failed to update application: " + err.message);
     }
   };
 
@@ -138,55 +156,26 @@ export default function Admissions() {
       label: "Actions",
       render: (_, row) => (
         <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={() => setEditTarget(row)}
+            style={{ background: theme.blue + "15", color: theme.blue, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+          >Edit</button>
           {row.status !== "Approved" && (
             <button
               onClick={() => handleApprove(row.id)}
-              style={{
-                background: theme.green + "18",
-                color: theme.green,
-                border: "none",
-                borderRadius: 6,
-                padding: "3px 9px",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              Approve
-            </button>
+              style={{ background: theme.green + "18", color: theme.green, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+            >Approve</button>
           )}
           {row.status !== "Rejected" && (
             <button
               onClick={() => handleReject(row.id)}
-              style={{
-                background: theme.red + "18",
-                color: theme.red,
-                border: "none",
-                borderRadius: 6,
-                padding: "3px 9px",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              Reject
-            </button>
+              style={{ background: theme.red + "18", color: theme.red, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+            >Reject</button>
           )}
           <button
             onClick={() => handleDelete(row.id)}
-            style={{
-              background: theme.muted + "18",
-              color: theme.muted,
-              border: "none",
-              borderRadius: 6,
-              padding: "3px 9px",
-              cursor: "pointer",
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            Delete
-          </button>
+            style={{ background: theme.muted + "18", color: theme.muted, border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+          >Delete</button>
         </div>
       ),
     },
@@ -238,7 +227,10 @@ export default function Admissions() {
       </CardWrapper>
 
       {addOpen && (
-        <AddAdmissionForm onClose={() => setAddOpen(false)} onAdd={handleAdd} />
+        <AddAdmissionForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} />
+      )}
+      {editTarget && (
+        <AddAdmissionForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} />
       )}
     </div>
   );

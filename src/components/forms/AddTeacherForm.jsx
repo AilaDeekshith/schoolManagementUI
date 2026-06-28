@@ -4,13 +4,26 @@ import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
 
-const INITIAL = {
+const BLANK = {
   name: "", subject: "", email: "", contact: "",
   classes: "", exp: "", qualification: "", status: "ACTIVE",
 };
 
-export default function AddTeacherForm({ onClose, onAdd }) {
-  const [form, setForm] = useState(INITIAL);
+export default function AddTeacherForm({ onClose, onAdd, onEdit, initial }) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState(isEdit ? {
+    name: initial.name ?? "",
+    subject: initial.subject ?? "",
+    email: initial.email ?? "",
+    contact: initial.contact ?? "",
+    classes: initial.classes ?? "",
+    exp: initial.exp ?? "",
+    qualification: initial.qualification ?? "",
+    status: initial.status === "Active" ? "ACTIVE"
+          : initial.status === "On Leave" ? "ON_LEAVE"
+          : initial.status === "Inactive" ? "INACTIVE"
+          : (initial.status ?? "ACTIVE"),
+  } : BLANK);
   const [errors, setErrors] = useState({});
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }));
@@ -28,10 +41,8 @@ export default function AddTeacherForm({ onClose, onAdd }) {
     e.preventDefault();
     const e2 = validate();
     if (Object.keys(e2).length) { setErrors(e2); return; }
-    onAdd({
-      ...form,
-      id: "T" + String(Date.now()).slice(-3),
-    });
+    if (isEdit) onEdit(form);
+    else        onAdd(form);
     onClose();
   };
 
@@ -43,7 +54,7 @@ export default function AddTeacherForm({ onClose, onAdd }) {
   );
 
   return (
-    <Modal title="Add New Teacher" onClose={onClose}>
+    <Modal title={isEdit ? "Edit Teacher" : "Add New Teacher"} onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <FormRow>
           {field("name", "Full Name", true,
@@ -74,7 +85,7 @@ export default function AddTeacherForm({ onClose, onAdd }) {
           <SelectInput value={form.status} onChange={set("status")}
             options={["ACTIVE", "ON_LEAVE", "INACTIVE"]} />)}
 
-        <FormActions onCancel={onClose} submitLabel="Add Teacher" />
+        <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Teacher" : "Add Teacher"} />
       </form>
     </Modal>
   );
