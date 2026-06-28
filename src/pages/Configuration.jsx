@@ -98,7 +98,7 @@ function ProfileTab() {
       .then(p => { if (p?.id) setForm({ ...blank, ...p, establishedYear: p.establishedYear ?? "" }); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [blank]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
