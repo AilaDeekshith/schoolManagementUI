@@ -1,5 +1,5 @@
 // pages/Configuration.jsx
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { theme } from "../theme";
 import { configAPI, userMgmtAPI } from "../api/apiService";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -86,28 +86,39 @@ function ListHeader({ title, count, onAdd, addLabel = "+ Add" }) {
 // ══════════════════════════════════════════════════════════════
 // TAB 1 — School Profile
 // ══════════════════════════════════════════════════════════════
-function ProfileTab() {
-  const blank = { schoolName: "", address: "", phone: "", email: "", principalName: "", academicYear: "", establishedYear: "", website: "", affiliationBoard: "", schoolType: "" };
+function ProfileTab({ onProfileSaved }) {
+  const blank = { schoolName: "", address: "", phone: "", email: "", principalName: "", academicYear: "", establishedYear: "", website: "", affiliationBoard: "", schoolType: "", logoBase64: "" };
   const [form, setForm] = useState(blank);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     configAPI.getProfile()
-      .then(p => { if (p?.id) setForm({ ...blank, ...p, establishedYear: p.establishedYear ?? "" }); })
+      .then(p => { if (p?.id) setForm({ ...blank, ...p, establishedYear: p.establishedYear ?? "", logoBase64: p.logoBase64 ?? "" }); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [blank]);
+  }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleLogoChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Image must be under 2 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => set("logoBase64", ev.target.result);
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async e => {
     e.preventDefault();
     setSaving(true);
     try {
-      await configAPI.saveProfile({ ...form, establishedYear: form.establishedYear ? Number(form.establishedYear) : null });
+      const result = await configAPI.saveProfile({ ...form, establishedYear: form.establishedYear ? Number(form.establishedYear) : null });
       setSaved(true);
+      onProfileSaved?.(result);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       alert("Failed to save: " + err.message);
@@ -137,6 +148,46 @@ function ProfileTab() {
         <div style={{ fontSize: 16, fontWeight: 800, color: theme.text }}>School Profile</div>
         <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>Basic information about your school</div>
       </div>
+
+      {/* ── Logo Upload ─────────────────────────────────────── */}
+      <div style={{ marginBottom: 24, padding: "18px 20px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: theme.muted, marginBottom: 14, textTransform: "uppercase", letterSpacing: .4 }}>School Logo</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: 14, flexShrink: 0,
+            border: `2px dashed ${form.logoBase64 ? theme.accent : theme.border}`,
+            background: form.logoBase64 ? "transparent" : "#f8fafc",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            overflow: "hidden", cursor: "pointer",
+          }} onClick={() => fileRef.current?.click()}>
+            {form.logoBase64
+              ? <img src={form.logoBase64} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 26 }}>🏫</div>
+                  <div style={{ fontSize: 9, color: theme.muted, marginTop: 3 }}>No logo</div>
+                </div>
+            }
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text, marginBottom: 6 }}>
+              {form.logoBase64 ? "Logo uploaded" : "No logo set"}
+            </div>
+            <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>PNG, JPG or SVG · max 2 MB</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoChange} />
+              <Btn small variant="blue" onClick={() => fileRef.current?.click()}>
+                {form.logoBase64 ? "Change Logo" : "Upload Logo"}
+              </Btn>
+              {form.logoBase64 && (
+                <Btn small variant="danger" onClick={() => { set("logoBase64", ""); if (fileRef.current) fileRef.current.value = ""; }}>
+                  Remove
+                </Btn>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <form onSubmit={handleSave}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
           {rows.map(([label, key, type, opts]) => (
@@ -596,10 +647,20 @@ const USER_GRADIENTS = [
 const userInitials = name => (name || "").split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
 
 function UserModal({ initial, onSave, onClose }) {
-  const blank = { name: "", email: "", username: "", phone: "", department: "", role: "STAFF", status: "ACTIVE", passwordChanged: false, };
-  const [form, setForm] = useState({ ...blank, ...(initial ?? {}) });
+  const blank = { name: "", email: "", username: "", phone: "", department: "", role: "STAFF", status: "ACTIVE", passwordChanged: false, photoBase64: "" };
+  const [form, setForm] = useState({ ...blank, ...(initial ?? {}), photoBase64: initial?.photoBase64 ?? "" });
   const [saving, setSaving] = useState(false);
+  const photoRef = useRef(null);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handlePhotoChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Photo must be under 2 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => set("photoBase64", ev.target.result);
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -612,6 +673,33 @@ function UserModal({ initial, onSave, onClose }) {
   return (
     <Modal title={initial ? "Edit User" : "Add New User"} onClose={onClose} width={520}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* Photo upload */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 14px", background: theme.bg, borderRadius: 10, border: `1px solid ${theme.border}` }}>
+          <div onClick={() => photoRef.current?.click()} style={{
+            width: 64, height: 64, borderRadius: "50%", flexShrink: 0,
+            border: `2px dashed ${form.photoBase64 ? theme.accent : theme.border}`,
+            background: form.photoBase64 ? "transparent" : "#f0f4ff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            overflow: "hidden", cursor: "pointer",
+          }}>
+            {form.photoBase64
+              ? <img src={form.photoBase64} alt="user" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <span style={{ fontSize: 24 }}>👤</span>}
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 4 }}>Profile Photo</div>
+            <div style={{ fontSize: 11, color: theme.muted, marginBottom: 7 }}>JPG / PNG · max 2 MB</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoChange} />
+              <Btn small variant="blue" onClick={() => photoRef.current?.click()}>{form.photoBase64 ? "Change" : "Upload"}</Btn>
+              {form.photoBase64 && (
+                <Btn small variant="danger" onClick={() => { set("photoBase64", ""); if (photoRef.current) photoRef.current.value = ""; }}>Remove</Btn>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Full Name *"><input required value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Rahul Sharma" style={inp()} /></Field>
           <Field label="Email *"><input required type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="rahul@school.in" style={inp()} /></Field>
@@ -735,8 +823,10 @@ function UsersTab() {
       ) : (
         filtered.map(u => (
           <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, marginBottom: 8 }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: USER_GRADIENTS[u.id % USER_GRADIENTS.length], display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
-              {userInitials(u.name)}
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: u.photoBase64 ? "transparent" : USER_GRADIENTS[u.id % USER_GRADIENTS.length], border: u.photoBase64 ? "1.5px solid #E5E7EB" : "none", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14, flexShrink: 0, overflow: "hidden" }}>
+              {u.photoBase64
+                ? <img src={u.photoBase64} alt={u.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : userInitials(u.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, color: theme.text, fontSize: 13 }}>{u.name}</div>
@@ -770,11 +860,11 @@ const TABS = [
   { id: "users",        label: "Users",             icon: "👤" },
 ];
 
-export default function Configuration() {
+export default function Configuration({ onProfileSaved }) {
   const [tab, setTab] = useState("profile");
 
   const content = {
-    profile:      <ProfileTab />,
+    profile:      <ProfileTab onProfileSaved={onProfileSaved} />,
     grades:       <GradesTab />,
     subjects:     <SubjectsTab />,
     feeStructure: <FeeStructureTab />,

@@ -1,5 +1,5 @@
 // src/api/apiService.js
-const BASE_URL = "http://localhost:8080/api";
+const BASE_URL = import.meta.env.VITE_BACK_END_URL;
 
 async function request(method, path, body = null) {
   const token = localStorage.getItem("token");
@@ -177,7 +177,8 @@ export const attendanceAPI = {
     if (params.length) url += `?${params.join("&")}`;
     return request("GET", url);
   },
-  getClassSummary: (className, from, to) => request("GET",   `/attendance/class/${encodeURIComponent(className)}/summary?from=${from}&to=${to}`),
+  getClassSummary:   (className, from, to) => request("GET", `/attendance/class/${encodeURIComponent(className)}/summary?from=${from}&to=${to}`),
+  getSummaryToday:   ()                    => request("GET", "/attendance/summary/today"),
 };
 
 export const examResultsAPI = {

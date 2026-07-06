@@ -33,39 +33,10 @@ export default function Sidebar({ active, setActive, open, setOpen }) {
       zIndex: 10,
     }}>
 
-      {/* ── Logo ── */}
-      <div style={{
-        padding: open ? "22px 20px 20px" : "20px 16px",
-        borderBottom: "1px solid rgba(255,255,255,0.09)",
-        display: "flex",
-        alignItems: "center",
-        gap: 13,
-        overflow: "hidden",
-      }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: 11,
-          background: "linear-gradient(135deg, #6C63FF, #A855F7)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 20, flexShrink: 0,
-          boxShadow: "0 4px 14px rgba(108,99,255,0.5)",
-        }}>🏫</div>
-
-        {open && (
-          <div style={{ animation: "fadeSlideIn 0.2s ease", overflow: "hidden" }}>
-            <div style={{ fontWeight: 900, fontSize: 15, color: "#FFFFFF", lineHeight: 1.1, whiteSpace: "nowrap" }}>
-              Sunrise
-            </div>
-            <div style={{ fontSize: 10, color: "#A5B4FC", fontFamily: "monospace", letterSpacing: 1.5, marginTop: 1 }}>
-              PUBLIC SCHOOL
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── Section label ── */}
       {open && (
         <div style={{
-          padding: "16px 20px 6px",
+          padding: "20px 20px 6px",
           fontSize: 9, fontWeight: 800,
           color: "rgba(165,180,252,0.55)",
           letterSpacing: 2,

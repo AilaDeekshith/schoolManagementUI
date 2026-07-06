@@ -22,7 +22,7 @@ const avatarGradient = (name = "") => {
   return gradients[name.charCodeAt(0) % gradients.length] || gradients[0];
 };
 
-export default function TopBar({ active, user, onLogout }) {
+export default function TopBar({ active, user, onLogout, schoolProfile }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -50,8 +50,28 @@ export default function TopBar({ active, user, onLogout }) {
       flexShrink: 0,
       boxShadow: "0 1px 0 #E8EDFF, 0 2px 16px rgba(108,99,255,0.05)",
     }}>
-      {/* Left — page breadcrumb placeholder */}
-      <div />
+      {/* Left — school branding */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: schoolProfile?.logoBase64 ? "transparent" : "linear-gradient(135deg, #6C63FF, #A855F7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 20, overflow: "hidden",
+          boxShadow: "0 2px 10px rgba(108,99,255,0.3)",
+        }}>
+          {schoolProfile?.logoBase64
+            ? <img src={schoolProfile.logoBase64} alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} />
+            : "🏫"}
+        </div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1E1B4B", lineHeight: 1.1 }}>
+            {schoolProfile?.schoolName || "My School"}
+          </div>
+          <div style={{ fontSize: 10, color: theme.muted, fontFamily: "monospace", letterSpacing: 1.2, marginTop: 1 }}>
+            {(schoolProfile?.affiliationBoard || "SCHOOL").toUpperCase()}
+          </div>
+        </div>
+      </div>
 
       {/* Right — avatar trigger */}
       <div ref={ref} style={{ position: "relative" }}>

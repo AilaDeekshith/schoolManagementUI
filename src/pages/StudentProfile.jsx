@@ -54,7 +54,7 @@ const ATTENDANCE_COLORS = {
   EXCUSED: { color: "#6C63FF", bg: "#f5f3ff" },
 };
 
-export default function StudentProfile({ student, onBack }) {
+export default function StudentProfile({ student, onBack, backLabel }) {
   const [feeHistory, setFeeHistory]         = useState([]);
   const [attendanceRecs, setAttendanceRecs] = useState([]);
   const [examResults, setExamResults]       = useState([]);
@@ -108,8 +108,8 @@ export default function StudentProfile({ student, onBack }) {
   const attTotal = attendanceRecs.length;
   const attPct   = attTotal ? Math.round(((attCounts.PRESENT || 0) + (attCounts.LATE || 0)) / attTotal * 100) : null;
 
-  // avatar initials + gradient
-  const initials = student.name.split(" ").map((w) => w[0]).join("").slice(0, 2);
+  // avatar: photo or first alphabet
+  const firstAlpha = (student.name?.[0] ?? "?").toUpperCase();
   const avatarGradients = [
     "linear-gradient(135deg, #6C63FF, #A855F7)",
     "linear-gradient(135deg, #3B82F6, #06B6D4)",
@@ -119,6 +119,10 @@ export default function StudentProfile({ student, onBack }) {
   ];
   const idNum = parseInt(String(student.id).replace(/\D/g, ""), 10) || 0;
   const gradient = avatarGradients[idNum % avatarGradients.length];
+  const rawPhoto = student.photo || student.photoBase64 || null;
+  const photoSrc = rawPhoto
+    ? (rawPhoto.startsWith("data:") ? rawPhoto : `data:image/jpeg;base64,${rawPhoto}`)
+    : null;
 
   return (
     <div>
@@ -135,7 +139,7 @@ export default function StudentProfile({ student, onBack }) {
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.muted; }}
       >
-        Back to Students
+        {backLabel || "Back to Students"}
       </button>
 
       {/* ── Hero card ── */}
@@ -147,12 +151,15 @@ export default function StudentProfile({ student, onBack }) {
       }}>
         {/* Avatar */}
         <div style={{
-          width: 90, height: 90, borderRadius: 20, background: gradient,
+          width: 90, height: 90, borderRadius: 20, background: photoSrc ? "transparent" : gradient,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 32, fontWeight: 900, color: "#fff", flexShrink: 0,
-          boxShadow: "0 4px 16px #6C63FF33",
+          fontSize: 40, fontWeight: 900, color: "#fff", flexShrink: 0,
+          boxShadow: "0 4px 16px #6C63FF33", overflow: "hidden",
         }}>
-          {initials}
+          {photoSrc
+            ? <img src={photoSrc} alt={student.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : firstAlpha
+          }
         </div>
 
         {/* Name block */}

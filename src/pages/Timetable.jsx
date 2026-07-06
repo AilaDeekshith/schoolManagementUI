@@ -8,8 +8,8 @@ import { timetableAPI, classAPI, teacherAPI, periodAPI, configAPI } from "../api
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────
-const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY"];
-const DAY_LABELS = { MONDAY:"Monday", TUESDAY:"Tuesday", WEDNESDAY:"Wednesday", THURSDAY:"Thursday", FRIDAY:"Friday" };
+const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+const DAY_LABELS = { MONDAY:"Monday", TUESDAY:"Tuesday", WEDNESDAY:"Wednesday", THURSDAY:"Thursday", FRIDAY:"Friday", SATURDAY: "Saturday" };
 const FALLBACK_SUBJECTS = ["Mathematics","Physics","Chemistry","Biology","English","History","Geography","Computer","P.E.","Art","Music"];
 
 // ─────────────────────────────────────────────────────────────
@@ -48,10 +48,11 @@ const buildGrid = (slots, periods, teachers) => {
     if (g[d] && g[d][p] !== undefined) {
       const teacher = teachers.find(t => t.id === slot.teacherId);
       g[d][p] = {
-        subject:     slot.subject,
-        teacherId:   slot.teacherId   || null,
-        teacherName: slot.teacherName || teacher?.name || "",
-        entryId:     slot.id,
+        subject:      slot.subject,
+        teacherId:    slot.teacherId   || null,
+        teacherName:  slot.teacherName || teacher?.name  || "",
+        teacherPhoto: teacher?.photo   || null,
+        entryId:      slot.id,
       };
     }
   });
@@ -277,39 +278,139 @@ function PeriodSetup({ className, existingPeriods, onSaved }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 2 — ASSIGN SUBJECTS & TEACHERS
 // ─────────────────────────────────────────────────────────────
-function CellEditor({ cell, period, teachers, subjects, onSave, onClear, onClose }) {
-  const [subject,   setSubject]   = useState(cell?.subject   || "");
-  const [teacherId, setTeacherId] = useState(cell?.teacherId ? String(cell.teacherId) : "");
+function CellEditor({ cell, period, teachers, subjects, className, classes, onSave, onClear, onClose }) {
+  const [subject,     setSubject]     = useState(cell?.subject   || "");
+  const [teacherId,   setTeacherId]   = useState(cell?.teacherId ? String(cell.teacherId) : "");
+  const [classFilter, setClassFilter] = useState(className || "");
 
-  const sel = { width:"100%", background:theme.bg, border:`1px solid ${theme.border}`, borderRadius:8, padding:"10px 12px", color:theme.text, fontSize:13, outline:"none", boxSizing:"border-box", cursor:"pointer" };
+  // Filter teachers by selected subject and class
+  const filteredTeachers = teachers.filter(t => {
+    const tSubjects = (t.subject || "").split(",").map(s => s.trim());
+    const subjectMatch = !subject || tSubjects.includes(subject);
+    const tClasses = (t.assignedClasses || "").split(",").map(c => c.trim()).filter(Boolean);
+    const classMatch = !classFilter || tClasses.includes(classFilter);
+    return subjectMatch && classMatch;
+  });
+
+  // Clear teacher selection if it's no longer in the filtered list
+  const prevFiltered = filteredTeachers.some(t => String(t.id) === teacherId);
+  if (teacherId && !prevFiltered) {
+    // Use effect-like logic via derived state reset
+  }
+
+  const handleSubjectChange = val => { setSubject(val); setTeacherId(""); };
+  const handleClassChange   = val => { setClassFilter(val); setTeacherId(""); };
+
+  const sel = {
+    width:"100%", background:theme.bg, border:`1px solid ${theme.border}`,
+    borderRadius:8, padding:"10px 12px", color:theme.text, fontSize:13,
+    outline:"none", boxSizing:"border-box", cursor:"pointer",
+  };
+
+  const labelStyle = {
+    display:"block", fontSize:11, fontWeight:700, color:theme.muted,
+    fontFamily:"monospace", letterSpacing:1, textTransform:"uppercase", marginBottom:6,
+  };
 
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"#1E1B4B66", backdropFilter:"blur(4px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background:theme.card, borderRadius:18, border:`1px solid ${theme.border}`, padding:28, width:380, boxShadow:"0 24px 64px #00000030" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:theme.card, borderRadius:18, border:`1px solid ${theme.border}`, padding:28, width:420, boxShadow:"0 24px 64px #00000030", maxHeight:"90vh", overflowY:"auto" }}>
         <h3 style={{ margin:"0 0 4px", fontSize:17, fontWeight:800, color:theme.text }}>
           {DAY_LABELS[cell.day]} · {period.periodLabel}
         </h3>
-        <p style={{ margin:"0 0 22px", fontSize:12, color:theme.muted, fontFamily:"monospace" }}>
+        <p style={{ margin:"0 0 20px", fontSize:12, color:theme.muted, fontFamily:"monospace" }}>
           {fmt(period.startTime)} – {fmt(period.endTime)} &nbsp;·&nbsp; {diffMins(period.startTime?.slice(0,5), period.endTime?.slice(0,5))} min
         </p>
 
-        <label style={{ display:"block", fontSize:11, fontWeight:700, color:theme.muted, fontFamily:"monospace", letterSpacing:1, textTransform:"uppercase", marginBottom:6 }}>
-          Subject <span style={{ color:theme.accent }}>*</span>
-        </label>
-        <select value={subject} onChange={e => setSubject(e.target.value)} style={{ ...sel, marginBottom:16 }}
+        {/* 1. Subject */}
+        <label style={labelStyle}>Subject <span style={{ color:theme.accent }}>*</span></label>
+        <select value={subject} onChange={e => handleSubjectChange(e.target.value)} style={{ ...sel, marginBottom:16 }}
           onFocus={e => (e.target.style.borderColor=theme.accent)} onBlur={e => (e.target.style.borderColor=theme.border)}>
           <option value="">— Select Subject —</option>
           {subjects.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        <label style={{ display:"block", fontSize:11, fontWeight:700, color:theme.muted, fontFamily:"monospace", letterSpacing:1, textTransform:"uppercase", marginBottom:6 }}>
-          Teacher
-        </label>
-        <select value={teacherId} onChange={e => setTeacherId(e.target.value)} style={{ ...sel, marginBottom:24 }}
+        {/* 2. Class filter */}
+        <label style={labelStyle}>Filter by Class</label>
+        <select value={classFilter} onChange={e => handleClassChange(e.target.value)} style={{ ...sel, marginBottom:16 }}
           onFocus={e => (e.target.style.borderColor=theme.accent)} onBlur={e => (e.target.style.borderColor=theme.border)}>
-          <option value="">— Select Teacher —</option>
-          {teachers.map(t => <option key={t.id} value={String(t.id)}>{t.name} ({t.subject})</option>)}
+          <option value="">— All Classes —</option>
+          {classes.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+
+        {/* 3. Teacher list (filtered) */}
+        <label style={labelStyle}>
+          Teacher
+          {subject && (
+            <span style={{ fontWeight:500, color:theme.muted, marginLeft:6, fontSize:10, textTransform:"none", letterSpacing:0 }}>
+              ({filteredTeachers.length} available)
+            </span>
+          )}
+        </label>
+
+        {!subject ? (
+          <div style={{ padding:"12px 14px", background:theme.bg, borderRadius:8, color:theme.muted, fontSize:13, border:`1.5px dashed ${theme.border}`, marginBottom:20, textAlign:"center" }}>
+            Select a subject first
+          </div>
+        ) : filteredTeachers.length === 0 ? (
+          <div style={{ padding:"12px 14px", background:theme.orange+"10", borderRadius:8, color:theme.orange, fontSize:13, border:`1px solid ${theme.orange}33`, marginBottom:20, textAlign:"center" }}>
+            No teachers found for this subject{classFilter ? ` in class ${classFilter}` : ""}
+          </div>
+        ) : (
+          <div style={{ border:`1px solid ${theme.border}`, borderRadius:10, overflow:"hidden", marginBottom:20, maxHeight:200, overflowY:"auto" }}>
+            {/* None option */}
+            <div
+              onClick={() => setTeacherId("")}
+              style={{
+                display:"flex", alignItems:"center", gap:10, padding:"8px 12px", cursor:"pointer",
+                background: !teacherId ? theme.accent+"12" : "transparent",
+                borderBottom:`1px solid ${theme.border}22`,
+              }}
+            >
+              <div style={{ width:32, height:32, borderRadius:"50%", background:theme.border+"66", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:theme.muted, flexShrink:0 }}>—</div>
+              <span style={{ fontSize:13, color:theme.muted }}>— No teacher —</span>
+              {!teacherId && <span style={{ marginLeft:"auto", color:theme.accent }}>✓</span>}
+            </div>
+            {filteredTeachers.map(t => {
+              const active = teacherId === String(t.id);
+              const rawPhoto = t.photo || null;
+              const photoSrc = rawPhoto ? (rawPhoto.startsWith("data:") ? rawPhoto : `data:image/jpeg;base64,${rawPhoto}`) : null;
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setTeacherId(String(t.id))}
+                  style={{
+                    display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
+                    cursor:"pointer", transition:"background 0.1s",
+                    background: active ? theme.accent+"12" : "transparent",
+                    borderBottom:`1px solid ${theme.border}11`,
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = theme.bg; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                >
+                  <div style={{
+                    width:32, height:32, borderRadius:"50%",
+                    background: photoSrc ? "transparent" : theme.accent+"22",
+                    border:`1.5px solid ${active ? theme.accent : theme.border}`,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:12, fontWeight:700, color:theme.accent,
+                    overflow:"hidden", flexShrink:0,
+                  }}>
+                    {photoSrc
+                      ? <img src={photoSrc} alt={t.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      : t.name[0].toUpperCase()
+                    }
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight: active ? 700 : 500, color: active ? theme.accent : theme.text }}>{t.name}</div>
+                    <div style={{ fontSize:10, color:theme.muted }}>{t.subject}</div>
+                  </div>
+                  {active && <span style={{ color:theme.accent, fontSize:14, flexShrink:0 }}>✓</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onClose} style={{ flex:1, background:"transparent", border:`1px solid ${theme.border}`, color:theme.muted, borderRadius:8, padding:"9px 0", cursor:"pointer", fontSize:13, fontWeight:600 }}>Cancel</button>
@@ -334,7 +435,7 @@ function CellEditor({ cell, period, teachers, subjects, onSave, onClear, onClose
   );
 }
 
-function AssignStep({ className, periods, teachers, subjects, onBack }) {
+function AssignStep({ className, periods, teachers, subjects, classes, onBack }) {
   const teachingPeriods = periods.filter(p => !p.isBreak);
   const [grid,        setGrid]        = useState(null);
   const [editingCell, setEditingCell] = useState(null);
@@ -370,7 +471,6 @@ function AssignStep({ className, periods, teachers, subjects, onBack }) {
   };
 
   const handleSaveCell = (day, periodNum, subject, teacherId) => {
-    console.log("teacher id", teacherId)
     const teacher = teachers.find(t => String(t.id) === String(teacherId));
     setGrid(prev => ({
       ...prev,
@@ -379,8 +479,9 @@ function AssignStep({ className, periods, teachers, subjects, onBack }) {
         [periodNum]: {
           ...prev[day][periodNum],
           subject,
-          teacherId:   teacherId || null,
-          teacherName: teacher?.name || "",
+          teacherId:    teacherId || null,
+          teacherName:  teacher?.name  || "",
+          teacherPhoto: teacher?.photo || null,
         },
       },
     }));
@@ -521,7 +622,15 @@ function AssignStep({ className, periods, teachers, subjects, onBack }) {
                         {cell?.subject ? (
                           <>
                             <div style={{ fontSize:12, fontWeight:800, color, lineHeight:1.3 }}>{cell.subject}</div>
-                            {cell.teacherName && <div style={{ fontSize:10, color:color+"CC", marginTop:3, fontWeight:500 }}>{cell.teacherName}</div>}
+                            {cell.teacherName && (
+                              <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:4 }}>
+                                {cell.teacherPhoto && (() => {
+                                  const src = cell.teacherPhoto.startsWith("data:") ? cell.teacherPhoto : `data:image/jpeg;base64,${cell.teacherPhoto}`;
+                                  return <img src={src} alt={cell.teacherName} style={{ width:16, height:16, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} />;
+                                })()}
+                                <div style={{ fontSize:10, color:color+"CC", fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{cell.teacherName}</div>
+                              </div>
+                            )}
                           </>
                         ) : (
                           <div style={{ fontSize:11, color:theme.border, textAlign:"center", fontWeight:600 }}>+ Add</div>
@@ -548,6 +657,8 @@ function AssignStep({ className, periods, teachers, subjects, onBack }) {
           period={editPeriod}
           teachers={teachers}
           subjects={subjects}
+          className={className}
+          classes={classes}
           onSave={handleSaveCell}
           onClear={handleClearCell}
           onClose={() => setEditingCell(null)}
@@ -585,7 +696,7 @@ export default function Timetable() {
         ]);
         const names = classData.map(c => c.className).sort();
         setClasses(names);
-        setTeachers(teacherData.map(t => ({ id:t.id, name:t.name, subject:t.subject })));
+        setTeachers(teacherData.map(t => ({ id:t.id, name:t.name, subject:t.subject || "", photo:t.photoBase64 ?? null, assignedClasses:t.assignedClasses || "" })));
         const subjectNames = subjectData.length
           ? subjectData.map(s => s.name)
           : FALLBACK_SUBJECTS;
@@ -685,6 +796,7 @@ export default function Timetable() {
               periods={periods}
               teachers={teachers}
               subjects={subjects}
+              classes={classes}
               onBack={() => setStep("setup")}
             />
       }

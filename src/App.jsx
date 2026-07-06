@@ -1,6 +1,7 @@
 // App.jsx  –  root component that wires everything together
 import { useState, useEffect } from "react";
 import { theme } from "./theme";
+import { configAPI } from "./api/apiService";
 
 // Layout components
 import Sidebar from "./components/Sidebar";
@@ -20,6 +21,7 @@ import Configuration from "./pages/Configuration";
 import Attendance    from "./pages/Attendance";
 import Login         from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
+import StudentProfile from "./pages/StudentProfile";
 
 const PAGES = {
   dashboard:     Dashboard,
@@ -49,6 +51,8 @@ export default function App() {
   const [active, setActive]             = useState("dashboard");
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [selectedClass, setSelectedClass] = useState(null); // { id, name }
+  const [selectedStudent, setSelectedStudent] = useState(null); // student profile row
+  const [schoolProfile, setSchoolProfile] = useState(null);
 
   // Listen for session-expiry events dispatched by apiService
   useEffect(() => {
@@ -56,6 +60,15 @@ export default function App() {
     window.addEventListener("auth:logout", handler);
     return () => window.removeEventListener("auth:logout", handler);
   }, []);
+
+  // Fetch school profile once logged in
+  useEffect(() => {
+    if (!authUser) return;
+    configAPI.getProfile().then(p => { if (p) setSchoolProfile(p); }).catch(() => {});
+  }, [authUser]);
+
+  // Allow Configuration page to propagate profile changes back up
+  const handleProfileSaved = (updated) => setSchoolProfile(updated);
 
   const handleLogin = (data) => {
     setAuthUser(data);
@@ -75,21 +88,33 @@ export default function App() {
   const handleSetActive = (page) => {
     setActive(page);
     setSelectedClass(null);
+    setSelectedStudent(null);
   };
 
   const renderPage = () => {
     if (active === "classes") {
+      if (selectedStudent) {
+        return (
+          <StudentProfile
+            student={selectedStudent}
+            onBack={() => setSelectedStudent(null)}
+            backLabel="Back to Classroom"
+          />
+        );
+      }
       if (selectedClass) {
         return (
           <ClassroomLayout
             classId={selectedClass.id}
             className={selectedClass.name}
             onBack={() => setSelectedClass(null)}
+            onStudentClick={(student) => setSelectedStudent(student)}
           />
         );
       }
       return <Classes onSelectClass={(cls) => setSelectedClass({ id: cls.id, name: cls.name })} />;
     }
+    if (active === "configuration") return <Configuration onProfileSaved={handleProfileSaved} />;
     const Page = PAGES[active];
     return <Page />;
   };
@@ -97,25 +122,26 @@ export default function App() {
   return (
     <div style={{
       display: "flex",
+      flexDirection: "column",
       height: "100vh",
       background: theme.bg,
       fontFamily: "'DM Sans', sans-serif",
       overflow: "hidden",
     }}>
-      {/* ── Sidebar ── */}
-      <Sidebar
-        active={active}
-        setActive={handleSetActive}
-        open={sidebarOpen}
-        setOpen={setSidebarOpen}
-      />
+      {/* ── TopBar — full width ── */}
+      <TopBar active={active} user={authUser} onLogout={handleLogout} schoolProfile={schoolProfile} />
 
-      {/* ── Main area ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <TopBar active={active} user={authUser} onLogout={handleLogout} />
+      {/* ── Body: sidebar + page ── */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <Sidebar
+          active={active}
+          setActive={handleSetActive}
+          open={sidebarOpen}
+          setOpen={setSidebarOpen}
+        />
 
         {/* Page content — no padding when showing classroom layout */}
-        {active === "classes" && selectedClass ? (
+        {active === "classes" && selectedClass && !selectedStudent ? (
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {renderPage()}
           </div>

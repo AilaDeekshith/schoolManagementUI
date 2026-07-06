@@ -1,29 +1,161 @@
 // components/forms/AddStudentForm.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
+import { configAPI } from "../../api/apiService";
 
 const BLANK = {
   name: "", dob: "", gender: "", class: "", roll: "",
-  guardian: "", contact: "", address: "", bloodGroup: "", status: "ACTIVE",
+  guardian: "", contact: "", address: "", bloodGroup: "", status: "ACTIVE", photoBase64: "",
 };
+
+// ── Photo uploader ────────────────────────────────────────────
+function PhotoUpload({ value, onChange }) {
+  const ref = useRef(null);
+
+  const handleFile = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Photo must be under 2 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => onChange(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
+      <div
+        onClick={() => ref.current?.click()}
+        style={{
+          width: 80, height: 80, borderRadius: "50%", flexShrink: 0,
+          border: `2px dashed ${value ? theme.accent : theme.border}`,
+          background: value ? "transparent" : "#f8fafc",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden", cursor: "pointer",
+        }}
+      >
+        {value
+          ? <img src={value} alt="student" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 24 }}>🎓</div>
+              <div style={{ fontSize: 9, color: theme.muted, marginTop: 2 }}>Photo</div>
+            </div>
+        }
+      </div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: theme.text, marginBottom: 4 }}>Student Photo</div>
+        <div style={{ fontSize: 11, color: theme.muted, marginBottom: 8 }}>JPG / PNG · max 2 MB</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input ref={ref} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+          <button type="button" onClick={() => ref.current?.click()}
+            style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${theme.blue}33`, background: theme.blue + "15", color: theme.blue, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            {value ? "Change" : "Upload"}
+          </button>
+          {value && (
+            <button type="button" onClick={() => { onChange(""); if (ref.current) ref.current.value = ""; }}
+              style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${theme.red}33`, background: theme.red + "12", color: theme.red, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Class select — grouped by grade, with sections ────────────
+function ClassSelect({ value, onChange, grades, loadingGrades }) {
+  const inputStyle = {
+    width: "100%", padding: "10px 14px", borderRadius: 8,
+    border: `1px solid ${theme.border}`, background: "#F9FAFB",
+    color: value ? theme.text : "#9CA3AF", fontSize: 14,
+    outline: "none", boxSizing: "border-box",
+    fontFamily: "'DM Sans', sans-serif", cursor: "pointer",
+    transition: "border-color 0.15s",
+  };
+
+  if (loadingGrades) {
+    return <div style={{ ...inputStyle, pointerEvents: "none" }}>Loading classes…</div>;
+  }
+
+  // If no grades configured at all, fall back to text input
+  if (!grades.length) {
+    return (
+      <input
+        type="text" value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="e.g. Grade 10-A"
+        style={inputStyle}
+        onFocus={e => (e.target.style.borderColor = theme.accent)}
+        onBlur={e => (e.target.style.borderColor = theme.border)}
+      />
+    );
+  }
+
+  // Build flat option list: for grades with sections, show "GradeName-Section";
+  // for grades without sections, show just the grade name so they're still selectable.
+  const hasAnySections = grades.some(g => g.sections?.length > 0);
+
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      style={inputStyle}
+      onFocus={e => (e.target.style.borderColor = theme.accent)}
+      onBlur={e => (e.target.style.borderColor = theme.border)}
+    >
+      <option value="">— Select class —</option>
+
+      {hasAnySections
+        // Grouped by grade with section options
+        ? grades.map(g => {
+            if (!g.sections?.length) return null;
+            return (
+              <optgroup key={g.id} label={g.name}>
+                {g.sections.map(s => {
+                  const cls = `${g.name}-${s.letter}`;
+                  return <option key={s.id} value={cls}>{cls}</option>;
+                })}
+              </optgroup>
+            );
+          })
+        // No sections anywhere — just show grade names
+        : grades.map(g => (
+            <option key={g.id} value={g.name}>{g.name}</option>
+          ))
+      }
+    </select>
+  );
+}
 
 export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classOptions = [] }) {
   const isEdit = !!initial;
   const [form, setForm] = useState(isEdit ? {
-    name: initial.name ?? "",
-    dob: initial.dob ?? "",
-    gender: initial.gender ?? "",
-    class: initial.class ?? "",
-    roll: initial.roll ?? "",
-    guardian: initial.guardian ?? "",
-    contact: initial.contact ?? "",
-    address: initial.address ?? "",
-    bloodGroup: initial.bloodGroup ?? "",
-    status: initial.status === "Active" ? "ACTIVE" : initial.status === "Inactive" ? "INACTIVE" : (initial.status ?? "ACTIVE"),
+    name:        initial.name        ?? "",
+    dob:         initial.dob         ?? "",
+    gender:      initial.gender      ?? "",
+    class:       initial.class       ?? "",
+    roll:        initial.roll        ?? "",
+    guardian:    initial.guardian    ?? "",
+    contact:     initial.contact     ?? "",
+    address:     initial.address     ?? "",
+    bloodGroup:  initial.bloodGroup  ?? "",
+    status:      initial.status === "Active" ? "ACTIVE" : initial.status === "Inactive" ? "INACTIVE" : (initial.status ?? "ACTIVE"),
+    photoBase64: initial.photoBase64 ?? "",
   } : BLANK);
-  const [errors, setErrors] = useState({});
+
+  const [errors,       setErrors]       = useState({});
+  const [grades,       setGrades]       = useState([]);
+  const [loadingGrades, setLoadingGrades] = useState(true);
+
+  // Fetch grades directly inside the form so it's always fresh
+  useEffect(() => {
+    configAPI.getGrades()
+      .then(data => setGrades(data ?? []))
+      .catch(() => setGrades([]))
+      .finally(() => setLoadingGrades(false));
+  }, []);
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }));
 
@@ -57,6 +189,10 @@ export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classO
   return (
     <Modal title={isEdit ? "Edit Student" : "Add New Student"} onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+        {/* Photo upload */}
+        <PhotoUpload value={form.photoBase64} onChange={set("photoBase64")} />
+
         <FormRow>
           {field("name", "Full Name", true,
             <TextInput value={form.name} onChange={set("name")} placeholder="e.g. Ananya Reddy" />)}
@@ -68,9 +204,13 @@ export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classO
           {field("gender", "Gender", true,
             <SelectInput value={form.gender} onChange={set("gender")} placeholder="Select gender"
               options={["Male", "Female", "Other"]} />)}
-          {field("class", "Class", true,
-            <SelectInput value={form.class} onChange={set("class")} placeholder="Select class"
-              options={classOptions.length ? classOptions : ["6-A","6-B","7-A","7-B","7-C","8-A","8-B","9-A","9-B","10-A","10-B"]} />)}
+          {field("class", "Class / Section", true,
+            <ClassSelect
+              value={form.class}
+              onChange={set("class")}
+              grades={grades}
+              loadingGrades={loadingGrades}
+            />)}
         </FormRow>
 
         <FormRow>

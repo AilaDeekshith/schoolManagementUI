@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { theme } from "../theme";
 import { classAPI, classLayoutAPI, studentAPI } from "../api/apiService";
-import StudentProfile from "./StudentProfile";
 
 // ── helpers ───────────────────────────────────────────────────
 function initials(name = "") {
@@ -533,16 +532,16 @@ const toProfileRow = (s) => ({
   gender: s.gender, dob: s.dob, guardian: s.guardianName,
   contact: s.contactNumber, email: s.email, address: s.address,
   bloodGroup: s.bloodGroup, status: mapStatus(s.status), fees: mapFeeStatus(s.feeStatus),
+  photo: s.photoBase64 || null,
 });
 
-export default function ClassroomLayout({ classId, className, onBack }) {
+export default function ClassroomLayout({ classId, className, onBack, onStudentClick }) {
   const [classData, setClassData]         = useState(null);
   const [seats, setSeats]                 = useState([]);
   const [students, setStudents]           = useState([]);
   const [loading, setLoading]             = useState(true);
   const [editingLayout, setEditingLayout] = useState(false);
   const [assignModal, setAssignModal]     = useState(null);
-  const [profileStudent, setProfileStudent] = useState(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -896,9 +895,14 @@ export default function ClassroomLayout({ classId, className, onBack }) {
                           setAssignModal({ row, col, seatIndex: si })
                         }
                         onUnassign={handleUnassign}
-                        onStudentClick={(sid) => {
-                          const s = students.find(st => st.id === sid);
-                          if (s) setProfileStudent(toProfileRow(s));
+                        onStudentClick={async (sid) => {
+                          try {
+                            const full = await studentAPI.getById(sid);
+                            onStudentClick?.(toProfileRow(full));
+                          } catch {
+                            const s = students.find(st => st.id === sid);
+                            if (s) onStudentClick?.(toProfileRow(s));
+                          }
                         }}
                       />
                     ))}
@@ -962,21 +966,6 @@ export default function ClassroomLayout({ classId, className, onBack }) {
         />
       )}
 
-      {/* Student profile overlay */}
-      {profileStudent && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#1E1B4B99",
-          backdropFilter: "blur(4px)", zIndex: 2000,
-          overflowY: "auto", padding: "28px 20px",
-        }}>
-          <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            <StudentProfile
-              student={profileStudent}
-              onBack={() => setProfileStudent(null)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

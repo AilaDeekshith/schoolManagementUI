@@ -31,6 +31,7 @@ const toRow = (s) => ({
   bloodGroup: s.bloodGroup,
   status: mapStatus(s.status),
   fees: mapFeeStatus(s.feeStatus),
+  photoBase64: s.photoBase64 ?? "",
 });
 
 export default function Students() {
@@ -78,6 +79,7 @@ export default function Students() {
     guardianName: formData.guardian,
     contactNumber: formData.contact,
     status: formData.status || 'ACTIVE',
+    photoBase64: formData.photoBase64 || null,
   });
 
   // ── add ────────────────────────────────────────────────────
@@ -123,7 +125,25 @@ export default function Students() {
 
   const columns = [
     { key: "id", label: "ID" },
-    { key: "name", label: "Name" },
+    {
+      key: "name", label: "Name",
+      render: (v, row) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+            background: row.photoBase64 ? "transparent" : "#EDE9FE",
+            border: "1.5px solid #E5E7EB", overflow: "hidden",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, fontWeight: 700, color: "#6C63FF",
+          }}>
+            {row.photoBase64
+              ? <img src={row.photoBase64} alt={v} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : v.charAt(0).toUpperCase()}
+          </div>
+          <span style={{ fontWeight: 600 }}>{v}</span>
+        </div>
+      ),
+    },
     { key: "class", label: "Class" },
     { key: "roll", label: "Roll No." },
     { key: "gender", label: "Gender" },

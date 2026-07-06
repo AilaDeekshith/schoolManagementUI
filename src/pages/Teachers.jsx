@@ -25,6 +25,7 @@ const toRow = (t) => ({
   exp: t.experience || "",
   qualification: t.qualification || "",
   status: mapStatus(t.status),
+  photoBase64: t.photoBase64 ?? "",
 });
 
 // ── Teacher Detail Modal ──────────────────────────────────────
@@ -70,10 +71,16 @@ function TeacherDetail({ teacher, onClose }) {
         }}>
           <div style={{
             width: 64, height: 64, borderRadius: 16,
-            background: theme.accent + "33", border: "2px solid rgba(255,255,255,0.2)",
+            background: teacher.photoBase64 ? "transparent" : theme.accent + "33",
+            border: "2px solid rgba(255,255,255,0.2)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 24, fontWeight: 900, color: "#fff",
-          }}>{initial}</div>
+            overflow: "hidden",
+          }}>
+            {teacher.photoBase64
+              ? <img src={teacher.photoBase64} alt={teacher.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : initial}
+          </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#fff" }}>{teacher.name}</h2>
             <div style={{ color: "#A5B4FC", fontSize: 14, marginTop: 2 }}>{teacher.subject}</div>
@@ -177,12 +184,16 @@ function TeacherCard({ teacher, onDelete, onEdit, onView }) {
       {/* Avatar + status */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
         <div style={{
-          width: 48, height: 48, borderRadius: "50%",
-          background: theme.accent + "22",
+          width: 52, height: 52, borderRadius: "50%",
+          background: teacher.photoBase64 ? "transparent" : theme.accent + "22",
+          border: teacher.photoBase64 ? "2px solid #E5E7EB" : "none",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 22, fontWeight: 800, color: theme.accent,
+          overflow: "hidden", flexShrink: 0,
         }}>
-          {teacher.name[0]}
+          {teacher.photoBase64
+            ? <img src={teacher.photoBase64} alt={teacher.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : teacher.name[0]}
         </div>
         <Badge status={teacher.status} />
       </div>
@@ -258,8 +269,11 @@ export default function Teachers() {
     contactNumber: formData.contact,
     qualification: formData.qualification || null,
     experience: formData.exp || null,
-    assignedClasses: formData.classes || null,
+    assignedClasses: Array.isArray(formData.classes)
+      ? formData.classes.join(", ")
+      : (formData.classes || null),
     status: formData.status || 'ACTIVE',
+    photoBase64: formData.photoBase64 || null,
   });
 
   const handleAdd = async (formData) => {
