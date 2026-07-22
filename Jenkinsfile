@@ -36,7 +36,7 @@ pipeline {
             steps {
                 sh """
                     docker build \
-                      --build-arg REACT_APP_API_URL=${REACT_APP_API_URL} \
+                      --build-arg VITE_BACK_END_URL=${VITE_BACK_END_URL} \
                       -t ${ECR_REPO}:${IMAGE_TAG} .
                 """
             }
