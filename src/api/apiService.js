@@ -130,6 +130,21 @@ export const configAPI = {
   // School Profile
   getProfile:    ()         => request("GET", "/config/profile"),
   saveProfile:   (data)     => request("PUT", "/config/profile", data),
+  // Public branding (name + logo) — no auth required, used on the login page
+  getBranding:   ()         => request("GET", "/config/branding"),
+
+  // Payment Receipt Templates
+  getReceiptTemplates:   ()         => request("GET",    "/config/receipt-templates"),
+  createReceiptTemplate: (data)     => request("POST",   "/config/receipt-templates", data),
+  updateReceiptTemplate: (id, data) => request("PUT",    `/config/receipt-templates/${id}`, data),
+  setDefaultReceiptTemplate: (id)   => request("PATCH",  `/config/receipt-templates/${id}/default`),
+  deleteReceiptTemplate: (id)       => request("DELETE", `/config/receipt-templates/${id}`),
+
+  // Dashboard Hero Slides (carousel)
+  getDashboardSlides:   ()         => request("GET",    "/config/dashboard-slides"),
+  createDashboardSlide: (data)     => request("POST",   "/config/dashboard-slides", data),
+  updateDashboardSlide: (id, data) => request("PUT",    `/config/dashboard-slides/${id}`, data),
+  deleteDashboardSlide: (id)       => request("DELETE", `/config/dashboard-slides/${id}`),
 
   // Grades
   getGrades:     ()         => request("GET",    "/config/grades"),
@@ -159,11 +174,33 @@ export const configAPI = {
   deleteHoliday:  (id)       => request("DELETE", `/config/holidays/${id}`),
 };
 
+export const noticesAPI = {
+  getAll: ()          => request("GET",    "/notices"),
+  create: (data)      => request("POST",   "/notices", data),
+  update: (id, data)  => request("PUT",    `/notices/${id}`, data),
+  delete: (id)        => request("DELETE", `/notices/${id}`),
+};
+
 export const classLayoutAPI = {
   updateLayout: (id, data)                      => request("PUT",    `/classes/${id}/layout`, data),
   getSeats:     (id)                            => request("GET",    `/classes/${id}/seats`),
   assignSeat:   (id, row, col, seat, studentId) => request("PUT",    `/classes/${id}/seats/${row}/${col}/${seat}`, { studentId }),
   unassignSeat: (id, row, col, seat)            => request("DELETE", `/classes/${id}/seats/${row}/${col}/${seat}`),
+};
+
+export const examSeatingAPI = {
+  // Plans (one per exam + room)
+  getPlans:     (examId)                        => request("GET",    `/exam-seating/plans?examId=${examId}`),
+  getPlan:      (id)                            => request("GET",    `/exam-seating/plans/${id}`),
+  createPlan:   (data)                          => request("POST",   "/exam-seating/plans", data),
+  updatePlan:   (id, data)                      => request("PUT",    `/exam-seating/plans/${id}`, data),
+  deletePlan:   (id)                            => request("DELETE", `/exam-seating/plans/${id}`),
+  // Seats
+  getSeats:     (id)                            => request("GET",    `/exam-seating/plans/${id}/seats`),
+  assignSeat:   (id, row, col, seat, studentId) => request("PUT",    `/exam-seating/plans/${id}/seats/${row}/${col}/${seat}`, { studentId }),
+  unassignSeat: (id, row, col, seat)            => request("DELETE", `/exam-seating/plans/${id}/seats/${row}/${col}/${seat}`),
+  autoAssign:   (id)                            => request("POST",   `/exam-seating/plans/${id}/auto-assign`),
+  clearSeats:   (id)                            => request("DELETE", `/exam-seating/plans/${id}/seats`),
 };
 
 export const attendanceAPI = {
@@ -203,4 +240,28 @@ export const examAPI = {
   getUpcoming:        ()           => request("GET",    "/exams/upcoming"),
   getUpcomingByClass: (cls)        => request("GET",    `/exams/upcoming/class/${cls}`),
   getByDateRange:     (from, to)   => request("GET",    `/exams/range?from=${from}&to=${to}`),
+};
+
+export const syllabusAPI = {
+  // Syllabi
+  getAll:      ()             => request("GET",    "/syllabi"),
+  getByGrade:  (grade)        => request("GET",    `/syllabi?grade=${encodeURIComponent(grade)}`),
+  getByYear:   (year)         => request("GET",    `/syllabi?year=${encodeURIComponent(year)}`),
+  getById:     (id)           => request("GET",    `/syllabi/${id}`),
+  create:      (data)         => request("POST",   "/syllabi", data),
+  update:      (id, data)     => request("PUT",    `/syllabi/${id}`, data),
+  delete:      (id)           => request("DELETE", `/syllabi/${id}`),
+
+  // Topics
+  addTopic:    (syllabusId, data) => request("POST",   `/syllabi/${syllabusId}/topics`, data),
+  updateTopic: (topicId, data)    => request("PUT",    `/syllabi/topics/${topicId}`, data),
+  deleteTopic: (topicId)          => request("DELETE", `/syllabi/topics/${topicId}`),
+  patchStatus: (topicId, status)  => request("PATCH",  `/syllabi/topics/${topicId}/status?status=${status}`),
+  patchKey:    (topicId, flag)    => request("PATCH",  `/syllabi/topics/${topicId}/key?flag=${flag}`),
+  moveTopic:   (topicId, dir)     => request("PATCH",  `/syllabi/topics/${topicId}/move?direction=${dir}`),
+
+  // References
+  addReference:    (topicId, data) => request("POST",   `/syllabi/topics/${topicId}/references`, data),
+  updateReference: (refId, data)   => request("PUT",    `/syllabi/references/${refId}`, data),
+  deleteReference: (refId)         => request("DELETE", `/syllabi/references/${refId}`),
 };

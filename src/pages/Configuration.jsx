@@ -4,6 +4,7 @@ import { theme } from "../theme";
 import { configAPI, userMgmtAPI } from "../api/apiService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import { ReceiptSheet } from "../components/PaymentReceipt";
 
 // ── shared primitives ─────────────────────────────────────────
 const inp = (extra = {}) => ({
@@ -87,16 +88,16 @@ function ListHeader({ title, count, onAdd, addLabel = "+ Add" }) {
 // TAB 1 — School Profile
 // ══════════════════════════════════════════════════════════════
 function ProfileTab({ onProfileSaved }) {
-  const blank = { schoolName: "", address: "", phone: "", email: "", principalName: "", academicYear: "", establishedYear: "", website: "", affiliationBoard: "", schoolType: "", logoBase64: "" };
+  const blank = { schoolName: "", address: "", phone: "", email: "", principalName: "", academicYear: "", establishedYear: "", website: "", affiliationBoard: "", schoolType: "", logoBase64: "", dashboardTagline: "", dashboardBannerBase64: "" };
   const [form, setForm] = useState(blank);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const fileRef = useRef(null);
+  const fileRef   = useRef(null);
 
   useEffect(() => {
     configAPI.getProfile()
-      .then(p => { if (p?.id) setForm({ ...blank, ...p, establishedYear: p.establishedYear ?? "", logoBase64: p.logoBase64 ?? "" }); })
+      .then(p => { if (p?.id) setForm({ ...blank, ...p, establishedYear: p.establishedYear ?? "", logoBase64: p.logoBase64 ?? "", dashboardTagline: p.dashboardTagline ?? "", dashboardBannerBase64: p.dashboardBannerBase64 ?? "" }); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -214,6 +215,167 @@ function ProfileTab({ onProfileSaved }) {
           {saving ? "Saving…" : saved ? "✓ Saved!" : "Save Profile"}
         </Btn>
       </form>
+
+      {/* ── Dashboard Hero Carousel ─────────────────────────────── */}
+      <DashboardSlidesManager />
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// Dashboard hero carousel — manage multiple image + tagline slides
+// ══════════════════════════════════════════════════════════════
+const SLIDE_DRAFT = { id: null, imageBase64: "", tagline: "" };
+
+function DashboardSlideCard({ slide, index, onSaved, onRemoved }) {
+  const [imageBase64, setImageBase64] = useState(slide.imageBase64 || "");
+  const [tagline, setTagline]         = useState(slide.tagline || "");
+  const [busy, setBusy]               = useState(false);
+  const fileRef = useRef(null);
+
+  const dirty = imageBase64 !== (slide.imageBase64 || "") || tagline !== (slide.tagline || "");
+
+  const handleImage = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setImageBase64(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    if (!imageBase64 && !tagline.trim()) { alert("Add an image or a tagline first"); return; }
+    setBusy(true);
+    try {
+      const payload = { imageBase64, tagline: tagline.trim(), sortOrder: slide.sortOrder ?? index };
+      const saved = slide.id
+        ? await configAPI.updateDashboardSlide(slide.id, payload)
+        : await configAPI.createDashboardSlide(payload);
+      onSaved(saved);
+    } catch (err) {
+      alert("Failed to save slide: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (slide.id && !confirm("Remove this slide?")) return;
+    setBusy(true);
+    try {
+      if (slide.id) await configAPI.deleteDashboardSlide(slide.id);
+      onRemoved(slide);
+    } catch (err) {
+      alert("Failed to remove slide: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 16, padding: 14, border: `1px solid ${theme.border}`, borderRadius: 12, background: theme.bg }}>
+      {/* Image */}
+      <div style={{
+        width: 180, height: 96, borderRadius: 10, flexShrink: 0,
+        border: `2px dashed ${imageBase64 ? theme.accent : theme.border}`,
+        background: imageBase64 ? "transparent" : "#f8fafc",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        overflow: "hidden", cursor: "pointer",
+      }} onClick={() => fileRef.current?.click()}>
+        {imageBase64
+          ? <img src={imageBase64} alt="slide" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 24 }}>🖼️</div>
+              <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>Add image</div>
+            </div>}
+      </div>
+
+      {/* Tagline + actions */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: theme.muted }}>SLIDE {index + 1}</div>
+        <input
+          type="text"
+          value={tagline}
+          onChange={e => setTagline(e.target.value)}
+          placeholder="Tagline — e.g. Empowering minds, shaping futures"
+          style={inp()}
+        />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImage} />
+          <Btn small variant="blue" onClick={() => fileRef.current?.click()}>
+            {imageBase64 ? "Change Image" : "Upload Image"}
+          </Btn>
+          {imageBase64 && (
+            <Btn small variant="ghost" onClick={() => { setImageBase64(""); if (fileRef.current) fileRef.current.value = ""; }}>
+              Clear Image
+            </Btn>
+          )}
+          <div style={{ flex: 1 }} />
+          <Btn small variant="success" onClick={handleSave} style={{ opacity: busy || (slide.id && !dirty) ? 0.55 : 1 }}>
+            {busy ? "…" : slide.id ? (dirty ? "Save" : "✓ Saved") : "Add"}
+          </Btn>
+          <Btn small variant="danger" onClick={handleRemove}>Remove</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardSlidesManager() {
+  const [slides, setSlides] = useState([]);
+  const [drafts, setDrafts] = useState([]); // unsaved new slides (no id)
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    configAPI.getDashboardSlides()
+      .then(data => setSlides(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const addDraft = () => setDrafts(d => [...d, { ...SLIDE_DRAFT, key: Date.now() }]);
+
+  const handleSaved = () => { setDrafts([]); load(); };
+
+  return (
+    <div style={{ marginTop: 28, padding: "18px 20px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: theme.text, marginBottom: 4 }}>Dashboard Hero Carousel</div>
+          <div style={{ fontSize: 12, color: theme.muted }}>
+            Add as many image + tagline slides as you like — the dashboard rotates through them automatically.
+          </div>
+        </div>
+        <Btn small onClick={addDraft}>+ Add Slide</Btn>
+      </div>
+
+      {loading ? (
+        <div style={{ color: theme.muted, fontSize: 13, padding: 12 }}>Loading slides…</div>
+      ) : slides.length === 0 && drafts.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "28px 0", color: theme.muted }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>No slides yet</div>
+          <div style={{ fontSize: 12, marginTop: 3 }}>Add a slide to show a rotating banner on the dashboard.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {slides.map((s, i) => (
+            <DashboardSlideCard key={s.id} slide={s} index={i} onSaved={handleSaved} onRemoved={handleSaved} />
+          ))}
+          {drafts.map((d, i) => (
+            <DashboardSlideCard
+              key={d.key}
+              slide={d}
+              index={slides.length + i}
+              onSaved={handleSaved}
+              onRemoved={() => setDrafts(prev => prev.filter(x => x.key !== d.key))}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -849,6 +1011,238 @@ function UsersTab() {
 }
 
 // ══════════════════════════════════════════════════════════════
+// TAB 7 — Payment Receipt Template
+// ══════════════════════════════════════════════════════════════
+const RECEIPT_TOGGLES = [
+  ["showLogo",          "School logo"],
+  ["showSchoolName",    "School name"],
+  ["showSchoolAddress", "School address"],
+  ["showSchoolContact", "Phone & email"],
+  ["showReceiptNo",     "Receipt number"],
+  ["showDate",          "Payment date"],
+  ["showAcademicYear",  "Academic year"],
+  ["showFeeType",       "Fee type"],
+  ["showPaymentMethod", "Payment method"],
+  ["showTransactionId", "Transaction / Ref ID"],
+  ["showTotals",        "Totals summary (total / paid / balance)"],
+  ["showAmountInWords", "Amount in words"],
+];
+
+const RECEIPT_DEFAULTS = {
+  name: "New Receipt Template",
+  isDefault: false,
+  title: "Fee Payment Receipt",
+  accentColor: "#6C63FF",
+  showLogo: true, showSchoolName: true, showSchoolAddress: true, showSchoolContact: true,
+  showReceiptNo: true, showDate: true, showAcademicYear: true, showFeeType: true,
+  showPaymentMethod: true, showTransactionId: true, showTotals: true, showAmountInWords: true,
+  thankYouMessage: "Thank you for your payment!",
+  signatureLabel: "Authorised Signatory",
+  footerNote: "This is a computer-generated receipt and does not require a physical signature.",
+};
+
+const RECEIPT_SAMPLE = {
+  receiptNo: "RCPT-1042",
+  date: new Date().toISOString().split("T")[0],
+  studentName: "Aarav Sharma",
+  studentClass: "10-A",
+  academicYear: "2024-25",
+  feeType: "Tuition",
+  paymentMethod: "UPI",
+  transactionId: "UPI1234567890",
+  amountPaid: 15000,
+  totalAmount: 45000,
+  paidToDate: 30000,
+  dueAmount: 15000,
+};
+
+function Toggle({ checked, onChange, label }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)}
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, border: `1px solid ${checked ? theme.accent + "55" : theme.border}`, background: checked ? theme.accent + "10" : theme.bg, cursor: "pointer", width: "100%", textAlign: "left" }}>
+      <span style={{ width: 34, height: 20, borderRadius: 20, background: checked ? theme.accent : theme.border, position: "relative", flexShrink: 0, transition: "background .15s" }}>
+        <span style={{ position: "absolute", top: 2, left: checked ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: checked ? theme.text : theme.muted }}>{label}</span>
+    </button>
+  );
+}
+
+// ── single-template editor (create / edit) ───────────────────
+function ReceiptEditor({ initial, profile, onSave, onCancel }) {
+  const [form, setForm]     = useState({ ...RECEIPT_DEFAULTS, ...(initial ?? {}) });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    if (!form.name?.trim()) { alert("Please give the template a name"); return; }
+    setSaving(true);
+    try { await onSave(form); }
+    catch (e) { alert("Failed to save: " + e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+        <Btn variant="ghost" small onClick={onCancel}>← Back</Btn>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: theme.text }}>{initial?.id ? "Edit Template" : "New Template"}</div>
+          <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>Design the receipt printed for the parent after a payment</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1fr) minmax(340px, 1.1fr)", gap: 28, alignItems: "start" }}>
+        {/* ── Editor form ────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <Field label="Template Name *">
+            <input value={form.name} onChange={e => set("name", e.target.value)} style={inp()} placeholder="e.g. Standard Tuition Receipt" />
+          </Field>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12 }}>
+            <Field label="Receipt Title">
+              <input value={form.title} onChange={e => set("title", e.target.value)} style={inp()} />
+            </Field>
+            <Field label="Accent Color">
+              <input type="color" value={form.accentColor} onChange={e => set("accentColor", e.target.value)}
+                style={{ width: 52, height: 42, padding: 3, border: `1.5px solid ${theme.border}`, borderRadius: 8, background: theme.bg, cursor: "pointer" }} />
+            </Field>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: .4 }}>Sections to include</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {RECEIPT_TOGGLES.map(([key, label]) => (
+                <Toggle key={key} checked={!!form[key]} onChange={v => set(key, v)} label={label} />
+              ))}
+            </div>
+          </div>
+
+          <Field label="Thank-you Message">
+            <input value={form.thankYouMessage} onChange={e => set("thankYouMessage", e.target.value)} style={inp()} placeholder="e.g. Thank you for your payment!" />
+          </Field>
+          <Field label="Signature Label">
+            <input value={form.signatureLabel} onChange={e => set("signatureLabel", e.target.value)} style={inp()} placeholder="e.g. Authorised Signatory" />
+          </Field>
+          <Field label="Footer Note">
+            <textarea value={form.footerNote} onChange={e => set("footerNote", e.target.value)} rows={2} style={{ ...inp(), resize: "vertical" }} />
+          </Field>
+
+          <Toggle checked={!!form.isDefault} onChange={v => set("isDefault", v)} label="Use this as the default receipt at collection" />
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn onClick={handleSave} variant="primary" style={{ padding: "11px 32px", opacity: saving ? 0.7 : 1 }}>
+              {saving ? "Saving…" : initial?.id ? "Update Template" : "Create Template"}
+            </Btn>
+            <Btn onClick={onCancel} variant="ghost">Cancel</Btn>
+          </div>
+        </div>
+
+        {/* ── Live preview ───────────────────────────────────── */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: theme.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: .4 }}>Live Preview</div>
+          <div style={{ background: "#f1f5f9", borderRadius: 14, padding: 20, border: `1px solid ${theme.border}` }}>
+            <div style={{ background: "#fff", borderRadius: 8, padding: 24, boxShadow: "0 8px 30px rgba(0,0,0,0.08)" }}>
+              <ReceiptSheet template={form} profile={profile} payment={RECEIPT_SAMPLE} />
+            </div>
+          </div>
+          <div style={{ marginTop: 10, fontSize: 11, color: theme.muted, textAlign: "center" }}>
+            Preview uses sample data. Your school details come from the School Profile tab.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── list / manager of all receipt templates ──────────────────
+function ReceiptTemplateTab() {
+  const [templates, setTemplates] = useState([]);
+  const [profile, setProfile]     = useState({});
+  const [loading, setLoading]     = useState(true);
+  const [editing, setEditing]     = useState(null); // null | {} (new) | template (edit)
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [tpls, prof] = await Promise.all([
+      configAPI.getReceiptTemplates().catch(() => []),
+      configAPI.getProfile().catch(() => null),
+    ]);
+    setTemplates(tpls);
+    if (prof) setProfile(prof);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, [load]);
+
+  const handleSave = async form => {
+    if (form.id) await configAPI.updateReceiptTemplate(form.id, form);
+    else         await configAPI.createReceiptTemplate(form);
+    setEditing(null);
+    load();
+  };
+
+  const handleDelete = async id => {
+    if (!window.confirm("Delete this receipt template?")) return;
+    await configAPI.deleteReceiptTemplate(id).catch(e => alert(e.message));
+    load();
+  };
+
+  const handleSetDefault = async id => {
+    await configAPI.setDefaultReceiptTemplate(id).catch(e => alert(e.message));
+    load();
+  };
+
+  if (loading) return <div style={{ color: theme.muted }}>Loading…</div>;
+
+  if (editing) {
+    return (
+      <ReceiptEditor
+        initial={editing.id ? editing : null}
+        profile={profile}
+        onSave={handleSave}
+        onCancel={() => setEditing(null)}
+      />
+    );
+  }
+
+  return (
+    <>
+      <ListHeader
+        title="Payment Receipt Templates"
+        count={templates.length}
+        onAdd={() => setEditing({})}
+        addLabel="+ New Template"
+      />
+      {templates.length === 0 ? (
+        <Empty message="No receipt templates yet — click New Template to design one" />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {templates.map(t => (
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px", background: theme.card, border: `1px solid ${t.isDefault ? theme.accent + "55" : theme.border}`, borderRadius: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: (t.accentColor || theme.accent) + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🧾</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{t.name}</span>
+                  {t.isDefault && <Tag label="Default" color={theme.green} />}
+                </div>
+                <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>{t.title}</div>
+              </div>
+              {!t.isDefault && <Btn small variant="ghost" onClick={() => handleSetDefault(t.id)}>Set Default</Btn>}
+              <Btn small variant="blue" onClick={() => setEditing(t)}>Edit</Btn>
+              <Btn small variant="danger" onClick={() => handleDelete(t.id)}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
 // Root
 // ══════════════════════════════════════════════════════════════
 const TABS = [
@@ -856,6 +1250,7 @@ const TABS = [
   { id: "grades",       label: "Grades & Sections", icon: "📚" },
   { id: "subjects",     label: "Subjects",          icon: "📖" },
   { id: "feeStructure", label: "Fee Structure",     icon: "💰" },
+  { id: "receipt",      label: "Payment Receipt",   icon: "🧾" },
   { id: "calendar",     label: "Academic Calendar", icon: "📅" },
   { id: "users",        label: "Users",             icon: "👤" },
 ];
@@ -868,6 +1263,7 @@ export default function Configuration({ onProfileSaved }) {
     grades:       <GradesTab />,
     subjects:     <SubjectsTab />,
     feeStructure: <FeeStructureTab />,
+    receipt:      <ReceiptTemplateTab />,
     calendar:     <CalendarTab />,
     users:        <UsersTab />,
   };

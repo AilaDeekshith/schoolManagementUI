@@ -66,5 +66,7 @@ export const MODULES = [
   { id: "classes",       label: "Classes",       icon: "🏫" },
   { id: "fees",          label: "Fees",          icon: "💳" },
   { id: "exams",         label: "Exams",         icon: "📝" },
+  { id: "examSeating",   label: "Exam Seating",  icon: "🪑" },
+  { id: "syllabus",      label: "Syllabus",      icon: "📚" },
   { id: "configuration", label: "Configuration", icon: "⚙️" },
 ];

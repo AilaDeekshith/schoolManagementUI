@@ -13,6 +13,8 @@ const MODULE_ACCENT = {
   classes:       "#EC4899",
   fees:          "#EF4444",
   exams:         "#F97316",
+  examSeating:   "#D946EF",
+  syllabus:      "#0D9488",
   configuration: "#64748B",
 };
 

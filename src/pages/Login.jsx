@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { authAPI } from "../api/apiService";
+import { useEffect, useState } from "react";
+import { authAPI, configAPI } from "../api/apiService";
 
 const ICONS = [
   { icon: "📚", x: "8%",  y: "12%", size: 52, rot: -15, delay: 0    },
@@ -18,11 +18,37 @@ const ICONS = [
   { icon: "📊", x: "93%", y: "63%", size: 40, rot: -20, delay: 0.45 },
 ];
 
+/** Read the minimal branding cached by App.jsx after a successful login. */
+function loadBranding() {
+  try {
+    return JSON.parse(localStorage.getItem("schoolBranding")) || {};
+  } catch {
+    return {};
+  }
+}
+
 export default function Login({ onLogin }) {
   const [form, setForm]       = useState({ username: "", password: "" });
   const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw]   = useState(false);
+
+  // Start from cached branding (from any previous login), then refresh
+  // from the public branding API so the logo/name show on first login too.
+  const [branding, setBranding] = useState(loadBranding);
+  const schoolName = branding.schoolName?.trim() || "School Management";
+  const logoBase64 = branding.logoBase64 || "";
+
+  useEffect(() => {
+    configAPI
+      .getBranding()
+      .then((data) => {
+        if (!data) return;
+        setBranding(data);
+        localStorage.setItem("schoolBranding", JSON.stringify(data));
+      })
+      .catch(() => {}); // fall back to cached/default branding
+  }, []);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -35,9 +61,9 @@ export default function Login({ onLogin }) {
       const data = await authAPI.login({ username: form.username, password: form.password });
       localStorage.setItem("token", data.token);
       localStorage.setItem("authUser", JSON.stringify({
-        username: data.username,
-        name:     data.name,
-        role:     data.role,
+        username:        data.username,
+        name:            data.name,
+        role:            data.role,
         passwordChanged: data.passwordChanged,
       }));
       onLogin(data);
@@ -110,17 +136,36 @@ export default function Login({ onLogin }) {
         animation: "cardIn 0.5s cubic-bezier(.4,0,.2,1) forwards",
       }}>
 
-        {/* Logo + branding */}
+        {/* Logo + branding — dynamic if configured, default otherwise */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 20,
-            background: "linear-gradient(135deg, #6C63FF, #A855F7)",
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 34, marginBottom: 16,
-            boxShadow: "0 8px 28px rgba(108,99,255,0.45)",
-          }}>🏫</div>
+          {logoBase64 ? (
+            /* Configured logo */
+            <div style={{
+              width: 80, height: 80, borderRadius: 20,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              marginBottom: 14, overflow: "hidden",
+              boxShadow: "0 8px 28px rgba(108,99,255,0.30)",
+              border: "2px solid rgba(108,99,255,0.18)",
+              background: "#f8f7ff",
+            }}>
+              <img
+                src={logoBase64}
+                alt={schoolName}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </div>
+          ) : (
+            /* Default gradient icon */
+            <div style={{
+              width: 72, height: 72, borderRadius: 20,
+              background: "linear-gradient(135deg, #6C63FF, #A855F7)",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              fontSize: 34, marginBottom: 16,
+              boxShadow: "0 8px 28px rgba(108,99,255,0.45)",
+            }}>🏫</div>
+          )}
           <div style={{ fontSize: 22, fontWeight: 900, color: "#1E1B4B", letterSpacing: -0.5 }}>
-            School Management
+            {schoolName}
           </div>
           <div style={{ fontSize: 13, color: "#6B7280", marginTop: 4, fontWeight: 500 }}>
             Sign in to your account
@@ -222,7 +267,7 @@ export default function Login({ onLogin }) {
 
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: "#9CA3AF" }}>
-          Powered by School Management System
+          Powered by {schoolName}
         </div>
       </div>
     </div>

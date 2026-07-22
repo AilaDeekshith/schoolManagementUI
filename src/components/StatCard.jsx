@@ -1,9 +1,11 @@
 // components/StatCard.jsx
 import { theme } from "../theme";
 
-export default function StatCard({ label, value, icon, color }) {
+export default function StatCard({ label, value, icon, color, onClick }) {
   return (
-    <div style={{
+    <div
+      onClick={onClick}
+      style={{
       background: theme.card,
       border: `1px solid ${theme.border}`,
       borderRadius: 14,
@@ -11,6 +13,7 @@ export default function StatCard({ label, value, icon, color }) {
       display: "flex",
       alignItems: "center",
       gap: 16,
+      cursor: onClick ? "pointer" : "default",
       boxShadow: `0 2px 12px ${color}18`,
       transition: "transform 0.15s, box-shadow 0.15s",
     }}

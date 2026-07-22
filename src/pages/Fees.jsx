@@ -9,7 +9,12 @@ import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import CollectFeeForm from "../components/forms/CollectFeeForm";
-import { feesAPI } from "../api/apiService";
+import PaymentReceipt from "../components/PaymentReceipt";
+import { feesAPI, configAPI } from "../api/apiService";
+
+// backend enum → readable label
+const prettyEnum = (s) =>
+  s ? s.split("_").map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ") : "";
 
 // ── helpers ───────────────────────────────────────────────────
 const mapFeeStatus = (s) =>
@@ -46,6 +51,9 @@ export default function Fees() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null); // row whose Collect was clicked
+  const [templates, setTemplates] = useState([]); // available receipt templates
+  const [profile, setProfile] = useState({}); // school profile for receipt header
+  const [receipt, setReceipt] = useState(null); // payment data for receipt modal
 
   // ── fetch ──────────────────────────────────────────────────
   const fetchFees = async () => {
@@ -71,17 +79,35 @@ export default function Fees() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFees();
+    // Load receipt templates + school profile for the printable receipt.
+    configAPI.getReceiptTemplates().then(setTemplates).catch(() => {});
+    configAPI.getProfile().then(setProfile).catch(() => {});
   }, []);
 
   // ── collect payment ────────────────────────────────────────
-  const handleCollect = async ({ feeId, amount, method, txnId }) => {
+  const handleCollect = async ({ feeId, amount, method, txnId, date }) => {
     try {
-      await feesAPI.collectPayment(
+      const updated = await feesAPI.collectPayment(
         feeId,
         amount,
         PAYMENT_METHOD_MAP[method] || "CASH",
         txnId || null,
       );
+      // Build the receipt for this payment and show it to the collector.
+      setReceipt({
+        receiptNo: `RCPT-${feeId}-${new Date().getTime().toString().slice(-6)}`,
+        date: date || new Date().toISOString().split("T")[0],
+        studentName: selected?.name,
+        studentClass: selected?.class,
+        academicYear: updated?.academicYear,
+        feeType: prettyEnum(updated?.feeType),
+        paymentMethod: method,
+        transactionId: txnId,
+        amountPaid: Number(amount),
+        totalAmount: Number(updated?.totalAmount || 0),
+        paidToDate: Number(updated?.paidAmount || 0),
+        dueAmount: Number(updated?.dueAmount || 0),
+      });
       fetchFees();
     } catch (err) {
       alert("Payment failed: " + err.message);
@@ -204,6 +230,16 @@ export default function Fees() {
           student={selected}
           onClose={() => setSelected(null)}
           onCollect={handleCollect}
+        />
+      )}
+
+      {/* Printable receipt shown after a successful payment */}
+      {receipt && (
+        <PaymentReceipt
+          templates={templates}
+          profile={profile}
+          payment={receipt}
+          onClose={() => setReceipt(null)}
         />
       )}
     </div>

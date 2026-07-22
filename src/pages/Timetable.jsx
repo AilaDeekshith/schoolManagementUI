@@ -278,28 +278,21 @@ function PeriodSetup({ className, existingPeriods, onSaved }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 2 — ASSIGN SUBJECTS & TEACHERS
 // ─────────────────────────────────────────────────────────────
-function CellEditor({ cell, period, teachers, subjects, className, classes, onSave, onClear, onClose }) {
+function CellEditor({ cell, period, teachers, subjects, className, onSave, onClear, onClose }) {
   const [subject,     setSubject]     = useState(cell?.subject   || "");
   const [teacherId,   setTeacherId]   = useState(cell?.teacherId ? String(cell.teacherId) : "");
-  const [classFilter, setClassFilter] = useState(className || "");
 
-  // Filter teachers by selected subject and class
+  // Class is fixed to the class selected on the page — filter teachers by the
+  // selected subject and this fixed class.
   const filteredTeachers = teachers.filter(t => {
     const tSubjects = (t.subject || "").split(",").map(s => s.trim());
     const subjectMatch = !subject || tSubjects.includes(subject);
     const tClasses = (t.assignedClasses || "").split(",").map(c => c.trim()).filter(Boolean);
-    const classMatch = !classFilter || tClasses.includes(classFilter);
+    const classMatch = tClasses.includes(className);
     return subjectMatch && classMatch;
   });
 
-  // Clear teacher selection if it's no longer in the filtered list
-  const prevFiltered = filteredTeachers.some(t => String(t.id) === teacherId);
-  if (teacherId && !prevFiltered) {
-    // Use effect-like logic via derived state reset
-  }
-
   const handleSubjectChange = val => { setSubject(val); setTeacherId(""); };
-  const handleClassChange   = val => { setClassFilter(val); setTeacherId(""); };
 
   const sel = {
     width:"100%", background:theme.bg, border:`1px solid ${theme.border}`,
@@ -330,13 +323,12 @@ function CellEditor({ cell, period, teachers, subjects, className, classes, onSa
           {subjects.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        {/* 2. Class filter */}
-        <label style={labelStyle}>Filter by Class</label>
-        <select value={classFilter} onChange={e => handleClassChange(e.target.value)} style={{ ...sel, marginBottom:16 }}
-          onFocus={e => (e.target.style.borderColor=theme.accent)} onBlur={e => (e.target.style.borderColor=theme.border)}>
-          <option value="">— All Classes —</option>
-          {classes.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        {/* 2. Class — fixed to the class selected on the page */}
+        <label style={labelStyle}>Class</label>
+        <div style={{ ...sel, marginBottom:16, cursor:"default", background:theme.surface, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span style={{ fontWeight:700, color:theme.text }}>{className}</span>
+          <span style={{ fontSize:10, color:theme.muted, fontFamily:"monospace", letterSpacing:1 }}>FIXED</span>
+        </div>
 
         {/* 3. Teacher list (filtered) */}
         <label style={labelStyle}>
@@ -354,7 +346,7 @@ function CellEditor({ cell, period, teachers, subjects, className, classes, onSa
           </div>
         ) : filteredTeachers.length === 0 ? (
           <div style={{ padding:"12px 14px", background:theme.orange+"10", borderRadius:8, color:theme.orange, fontSize:13, border:`1px solid ${theme.orange}33`, marginBottom:20, textAlign:"center" }}>
-            No teachers found for this subject{classFilter ? ` in class ${classFilter}` : ""}
+            No teachers found for this subject in class {className}
           </div>
         ) : (
           <div style={{ border:`1px solid ${theme.border}`, borderRadius:10, overflow:"hidden", marginBottom:20, maxHeight:200, overflowY:"auto" }}>
@@ -435,7 +427,7 @@ function CellEditor({ cell, period, teachers, subjects, className, classes, onSa
   );
 }
 
-function AssignStep({ className, periods, teachers, subjects, classes, onBack }) {
+function AssignStep({ className, periods, teachers, subjects, onBack }) {
   const teachingPeriods = periods.filter(p => !p.isBreak);
   const [grid,        setGrid]        = useState(null);
   const [editingCell, setEditingCell] = useState(null);
@@ -658,7 +650,6 @@ function AssignStep({ className, periods, teachers, subjects, classes, onBack })
           teachers={teachers}
           subjects={subjects}
           className={className}
-          classes={classes}
           onSave={handleSaveCell}
           onClear={handleClearCell}
           onClose={() => setEditingCell(null)}
@@ -796,7 +787,6 @@ export default function Timetable() {
               periods={periods}
               teachers={teachers}
               subjects={subjects}
-              classes={classes}
               onBack={() => setStep("setup")}
             />
       }

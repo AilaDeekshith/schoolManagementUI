@@ -17,7 +17,9 @@ import Classes       from "./pages/Classes";
 import ClassroomLayout from "./pages/ClassroomLayout";
 import Fees          from "./pages/Fees";
 import Exams         from "./pages/Exams";
+import ExamSeating   from "./pages/ExamSeating";
 import Configuration from "./pages/Configuration";
+import Syllabus      from "./pages/Syllabus";
 import Attendance    from "./pages/Attendance";
 import Login         from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -31,7 +33,9 @@ const PAGES = {
   timetable:     Timetable,
   fees:          Fees,
   exams:         Exams,
+  examSeating:   ExamSeating,
   attendance:    Attendance,
+  syllabus:      Syllabus,
   configuration: Configuration,
 };
 
@@ -61,14 +65,31 @@ export default function App() {
     return () => window.removeEventListener("auth:logout", handler);
   }, []);
 
-  // Fetch school profile once logged in
+  // Fetch school profile once logged in; also cache branding for the Login page
   useEffect(() => {
     if (!authUser) return;
-    configAPI.getProfile().then(p => { if (p) setSchoolProfile(p); }).catch(() => {});
+    configAPI.getProfile().then(p => {
+      if (p) {
+        setSchoolProfile(p);
+        // Cache minimal branding so Login page can show it before auth
+        localStorage.setItem("schoolBranding", JSON.stringify({
+          schoolName:    p.schoolName    || "",
+          logoBase64:    p.logoBase64    || "",
+        }));
+      }
+    }).catch(() => {});
   }, [authUser]);
 
   // Allow Configuration page to propagate profile changes back up
-  const handleProfileSaved = (updated) => setSchoolProfile(updated);
+  const handleProfileSaved = (updated) => {
+    setSchoolProfile(updated);
+    if (updated) {
+      localStorage.setItem("schoolBranding", JSON.stringify({
+        schoolName:    updated.schoolName    || "",
+        logoBase64:    updated.logoBase64    || "",
+      }));
+    }
+  };
 
   const handleLogin = (data) => {
     setAuthUser(data);
@@ -116,7 +137,7 @@ export default function App() {
     }
     if (active === "configuration") return <Configuration onProfileSaved={handleProfileSaved} />;
     const Page = PAGES[active];
-    return <Page />;
+    return <Page onNavigate={handleSetActive} />;
   };
 
   return (
