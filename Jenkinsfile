@@ -14,7 +14,7 @@ pipeline {
         // The backend's own ALB DNS name — baked into the React build so the
         // frontend knows where to send API calls. Update this once you have
         // your backend ALB's real DNS name.
-        REACT_APP_API_URL = 'http://schoolmanagement-alb-1958848537.us-east-1.elb.amazonaws.com'
+        VITE_BACK_END_URL = 'http://schoolmanagement-alb-1958848537.us-east-1.elb.amazonaws.com/api'
     }
 
     stages {
