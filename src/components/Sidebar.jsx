@@ -4,7 +4,7 @@ import { MODULES } from "../data/mockData";
 
 // Icon background colour per module (subtle pill on active)
 const MODULE_ACCENT = {
-  dashboard:     "#6C63FF",
+  dashboar:     "#6C63FF",
   students:      "#3B82F6",
   teachers:      "#10B981",
   admissions:    "#F59E0B",
