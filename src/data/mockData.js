@@ -57,7 +57,7 @@ export const exams = [
 ];
 
 export const MODULES = [
-  { id: "dashboard",     label: "Dashboard",     icon: "⊞" },
+  { id: "dashboard",     label: "Dashboar",     icon: "⊞" },
   { id: "students",      label: "Students",      icon: "🎓" },
   { id: "teachers",      label: "Teachers",      icon: "👩‍🏫" },
   { id: "admissions",    label: "Admissions",    icon: "📋" },
