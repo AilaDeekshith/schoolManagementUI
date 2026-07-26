@@ -88,7 +88,7 @@ export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers
             options={teacherOptions} />)}
 
         {field("monitor", "Class Monitor", false,
-          <TextInput value={form.monitor} onChange={v => set("monitor", v)} placeholder="Student's full name" />)}
+          <TextInput value={form.monitor} onChange={v => set("monitor", v)} placeholder="deekshith" />)}
 
         <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Class" : "Create Class"} />
       </form>

@@ -1,5 +1,6 @@
 // pages/Syllabus.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import { syllabusAPI, configAPI } from "../api/apiService";
 
@@ -388,7 +389,7 @@ function SyllabusModal({ grades, configSubjects, existingSubjectNames, initial, 
     if (!form.gradeName || !form.subjectName || !form.academicYear) return;
     setSaving(true);
     try { await onSave({ ...form, totalHours: form.totalHours ? Number(form.totalHours) : null }); onClose(); }
-    catch (err) { alert(err.message); }
+    catch (err) { toast.error(err.message); }
     finally { setSaving(false); }
   };
 

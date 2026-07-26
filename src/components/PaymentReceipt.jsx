@@ -1,5 +1,6 @@
 // components/PaymentReceipt.jsx
 import { useRef, useState } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 
 // ── amount → words (Indian numbering) ─────────────────────────
@@ -175,7 +176,7 @@ export default function PaymentReceipt({ templates = [], profile, payment, onClo
     const html = sheetRef.current?.innerHTML;
     if (!html) return;
     const win = window.open("", "_blank", "width=800,height=900");
-    if (!win) { alert("Please allow pop-ups to print the receipt."); return; }
+    if (!win) { toast.error("Please allow pop-ups to print the receipt."); return; }
     win.document.write(`
       <!DOCTYPE html><html><head><title>${(template?.title) || "Fee Receipt"}</title>
       <meta charset="utf-8" />

@@ -1,7 +1,8 @@
 // pages/ExamSeating.jsx
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
-import { examAPI, classAPI, studentAPI, examSeatingAPI } from "../api/apiService";
+import { examAPI, configAPI, studentAPI, examSeatingAPI } from "../api/apiService";
 
 // ── helpers ───────────────────────────────────────────────────
 const initials = (name = "") =>
@@ -70,9 +71,9 @@ function RoomForm({ initial, classes, onSave, onCancel }) {
 
   const submit = (e) => {
     e.preventDefault();
-    if (!form.roomName.trim()) { alert("Room name is required"); return; }
+    if (!form.roomName.trim()) { toast.error("Room name is required"); return; }
     const rows = Number(form.rows), columns = Number(form.columns), seatsPerBench = Number(form.seatsPerBench);
-    if (!rows || !columns || !seatsPerBench) { alert("Enter rows, columns and seats per bench"); return; }
+    if (!rows || !columns || !seatsPerBench) { toast.error("Enter rows, columns and seats per bench"); return; }
     onSave({ roomName: form.roomName.trim(), rows, columns, seatsPerBench, classNames: form.classNames });
   };
 
@@ -161,7 +162,7 @@ function AssignModal({ pool, assignedIds, currentId, seatLabel, onAssign, onClos
   const [q, setQ] = useState("");
   const available = pool
     .filter((s) => !assignedIds.has(s.id) || s.id === currentId)
-    .filter((s) => !q || s.name.toLowerCase().includes(q.toLowerCase()) || String(s.rollNumber ?? "").includes(q));
+    .filter((s) => !q || (s?.name || "").toLowerCase().includes(q.toLowerCase()) || String(s?.rollNumber ?? "").includes(q));
 
   return (
     <div onClick={onClose} style={{
@@ -236,7 +237,7 @@ function Seat({ seat, onAssign, onUnassign }) {
         }}>×</button>
       )}
       <div style={{ fontSize: 10, fontWeight: 700, color: a ? theme.text : theme.muted, maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
-        {a ? a.studentName.split(" ")[0] : "Empty"}
+        {a ? (a.studentName || "").split(" ")[0] : "Empty"}
       </div>
     </div>
   );
@@ -294,7 +295,7 @@ function SeatingArranger({ plan, onBack, onChanged }) {
       });
       setAssignModal(null);
       onChanged?.();
-    } catch (err) { alert("Failed to assign: " + err.message); }
+    } catch (err) { toast.error("Failed to assign: " + err.message); }
   };
 
   const handleUnassign = async (r, c, si) => {
@@ -302,7 +303,7 @@ function SeatingArranger({ plan, onBack, onChanged }) {
       await examSeatingAPI.unassignSeat(plan.id, r, c, si);
       setSeats((prev) => prev.filter((s) => !(s.rowNum === r && s.colNum === c && s.seatIndex === si)));
       onChanged?.();
-    } catch (err) { alert("Failed to remove: " + err.message); }
+    } catch (err) { toast.error("Failed to remove: " + err.message); }
   };
 
   const handleAuto = async () => {
@@ -310,7 +311,7 @@ function SeatingArranger({ plan, onBack, onChanged }) {
       const updated = await examSeatingAPI.autoAssign(plan.id);
       setSeats(updated);
       onChanged?.();
-    } catch (err) { alert("Auto-assign failed: " + err.message); }
+    } catch (err) { toast.error("Auto-assign failed: " + err.message); }
   };
 
   const handleClear = async () => {
@@ -319,7 +320,7 @@ function SeatingArranger({ plan, onBack, onChanged }) {
       await examSeatingAPI.clearSeats(plan.id);
       setSeats([]);
       onChanged?.();
-    } catch (err) { alert("Failed to clear: " + err.message); }
+    } catch (err) { toast.error("Failed to clear: " + err.message); }
   };
 
   const modalSeat = assignModal ? seatAt(assignModal.r, assignModal.c, assignModal.si) : null;
@@ -422,7 +423,14 @@ export default function ExamSeating() {
 
   useEffect(() => {
     examAPI.getAll().then(setExams).catch(() => {});
-    classAPI.getAll().then(setClasses).catch(() => {});
+    // Class options come from the configured grades & sections.
+    configAPI.getGrades()
+      .then(grades => setClasses((grades || []).flatMap(g =>
+        (g.sections ?? []).map(s => {
+          const cn = `${g.name}-${s.letter}`;
+          return { id: cn, className: cn };
+        }))))
+      .catch(() => {});
   }, []);
 
   const loadPlans = useCallback((id) => {
@@ -450,13 +458,13 @@ export default function ExamSeating() {
       }
       setEditing(null);
       loadPlans(examId);
-    } catch (err) { alert("Failed to save room: " + err.message); }
+    } catch (err) { toast.error("Failed to save room: " + err.message); }
   };
 
   const handleDelete = async (plan) => {
     if (!confirm(`Delete room "${plan.roomName}" and its seating?`)) return;
     try { await examSeatingAPI.deletePlan(plan.id); loadPlans(examId); }
-    catch (err) { alert("Failed to delete: " + err.message); }
+    catch (err) { toast.error("Failed to delete: " + err.message); }
   };
 
   // ── Arranging a specific room ──────────────────────────────

@@ -1,5 +1,6 @@
 // components/forms/AddTeacherForm.jsx
 import { useState, useEffect, useRef } from "react";
+import { toast } from "../../toast";
 import Modal from "../Modal";
 import { FormField, TextInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
@@ -17,7 +18,7 @@ function PhotoUpload({ value, onChange }) {
   const handleFile = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Photo must be under 2 MB"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Photo must be under 2 MB"); return; }
     const reader = new FileReader();
     reader.onload = ev => onChange(ev.target.result);
     reader.readAsDataURL(file);
@@ -312,13 +313,6 @@ export default function AddTeacherForm({ onClose, onAdd, onEdit, initial }) {
     onClose();
   };
 
-  const inp = {
-    width: "100%", padding: "9px 12px", borderRadius: 8,
-    border: `1.5px solid ${theme.border}`, background: theme.bg,
-    color: theme.text, fontSize: 14, outline: "none", boxSizing: "border-box",
-    fontFamily: "'DM Sans', sans-serif",
-  };
-
   const field = (key, label, required, children) => (
     <FormField label={label} required={required}>
       {children}
@@ -335,7 +329,7 @@ export default function AddTeacherForm({ onClose, onAdd, onEdit, initial }) {
 
         <FormRow>
           {field("name", "Full Name", true,
-            <TextInput value={form.name} onChange={set("name")} placeholder="e.g. Dr. Rekha Iyer" />)}
+            <TextInput value={form.name} onChange={set("name")} placeholder="deekshith" />)}
           {field("email", "Email", true,
             <TextInput type="email" value={form.email} onChange={set("email")} placeholder="teacher@school.in" />)}
         </FormRow>

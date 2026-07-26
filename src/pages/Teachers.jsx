@@ -1,5 +1,6 @@
 // pages/Teachers.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
 import Badge from "../components/Badge";
@@ -45,7 +46,7 @@ function TeacherDetail({ teacher, onClose }) {
   schedule.forEach(s => { if (byDay[s.dayOfWeek]) byDay[s.dayOfWeek].push(s); });
   DAYS.forEach(d => byDay[d].sort((a, b) => a.periodNumber - b.periodNumber));
 
-  const initial = teacher.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const initial = (teacher?.name || "").split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase();
 
   return (
     <div
@@ -191,9 +192,9 @@ function TeacherCard({ teacher, onDelete, onEdit, onView }) {
           fontSize: 22, fontWeight: 800, color: theme.accent,
           overflow: "hidden", flexShrink: 0,
         }}>
-          {teacher.photoBase64
-            ? <img src={teacher.photoBase64} alt={teacher.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            : teacher.name[0]}
+          {teacher?.photoBase64
+            ? <img src={teacher.photoBase64} alt={teacher?.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : teacher?.name?.[0]}
         </div>
         <Badge status={teacher.status} />
       </div>
@@ -281,7 +282,7 @@ export default function Teachers() {
       await teacherAPI.create(toPayload(formData));
       fetchTeachers();
     } catch (err) {
-      alert("Failed to add teacher: " + err.message);
+      toast.error("Failed to add teacher: " + err.message);
     }
   };
 
@@ -290,7 +291,7 @@ export default function Teachers() {
       await teacherAPI.update(editTarget.id, toPayload(formData));
       fetchTeachers();
     } catch (err) {
-      alert("Failed to update teacher: " + err.message);
+      toast.error("Failed to update teacher: " + err.message);
     }
   };
 
@@ -300,7 +301,7 @@ export default function Teachers() {
       await teacherAPI.delete(id);
       setTeachers((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      toast.error("Failed to delete: " + err.message);
     }
   };
 

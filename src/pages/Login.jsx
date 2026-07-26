@@ -65,6 +65,7 @@ export default function Login({ onLogin }) {
         name:            data.name,
         role:            data.role,
         passwordChanged: data.passwordChanged,
+        permissions:     data.permissions || [],
       }));
       onLogin(data);
     } catch (err) {

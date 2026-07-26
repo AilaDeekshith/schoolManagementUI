@@ -1,10 +1,12 @@
 // pages/Configuration.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import { configAPI, userMgmtAPI } from "../api/apiService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import { ReceiptSheet } from "../components/PaymentReceipt";
+import { MODULES } from "../data/mockData";
 
 // ── shared primitives ─────────────────────────────────────────
 const inp = (extra = {}) => ({
@@ -107,7 +109,7 @@ function ProfileTab({ onProfileSaved }) {
   const handleLogoChange = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Image must be under 2 MB"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Image must be under 2 MB"); return; }
     const reader = new FileReader();
     reader.onload = ev => set("logoBase64", ev.target.result);
     reader.readAsDataURL(file);
@@ -122,7 +124,7 @@ function ProfileTab({ onProfileSaved }) {
       onProfileSaved?.(result);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      alert("Failed to save: " + err.message);
+      toast.error("Failed to save: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -238,14 +240,14 @@ function DashboardSlideCard({ slide, index, onSaved, onRemoved }) {
   const handleImage = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = ev => setImageBase64(ev.target.result);
     reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
-    if (!imageBase64 && !tagline.trim()) { alert("Add an image or a tagline first"); return; }
+    if (!imageBase64 && !tagline.trim()) { toast.error("Add an image or a tagline first"); return; }
     setBusy(true);
     try {
       const payload = { imageBase64, tagline: tagline.trim(), sortOrder: slide.sortOrder ?? index };
@@ -254,7 +256,7 @@ function DashboardSlideCard({ slide, index, onSaved, onRemoved }) {
         : await configAPI.createDashboardSlide(payload);
       onSaved(saved);
     } catch (err) {
-      alert("Failed to save slide: " + err.message);
+      toast.error("Failed to save slide: " + err.message);
     } finally {
       setBusy(false);
     }
@@ -267,7 +269,7 @@ function DashboardSlideCard({ slide, index, onSaved, onRemoved }) {
       if (slide.id) await configAPI.deleteDashboardSlide(slide.id);
       onRemoved(slide);
     } catch (err) {
-      alert("Failed to remove slide: " + err.message);
+      toast.error("Failed to remove slide: " + err.message);
     } finally {
       setBusy(false);
     }
@@ -405,24 +407,24 @@ function GradesTab() {
 
   const addGrade = async () => {
     if (!newGrade.trim()) return;
-    const g = await configAPI.createGrade({ name: newGrade.trim() }).catch(e => { alert(e.message); return null; });
+    const g = await configAPI.createGrade({ name: newGrade.trim() }).catch(e => { toast.error(e.message); return null; });
     if (g) { setNewGrade(""); setSelected(g); load(); }
   };
 
   const delGrade = async id => {
     if (!window.confirm("Delete this grade and all its sections?")) return;
-    await configAPI.deleteGrade(id).catch(e => alert(e.message));
+    await configAPI.deleteGrade(id).catch(e => toast.error(e.message));
     if (selected?.id === id) setSelected(null);
     load();
   };
 
   const addSection = async () => {
     if (!newSection.trim() || !selected) return;
-    await configAPI.addSection(selected.id, newSection.trim()).catch(e => { alert(e.message); return; });
+    await configAPI.addSection(selected.id, newSection.trim()).catch(e => { toast.error(e.message); return; });
     setNewSection(""); load();
   };
 
-  const delSection = async sid => { await configAPI.deleteSection(sid).catch(e => alert(e.message)); load(); };
+  const delSection = async sid => { await configAPI.deleteSection(sid).catch(e => toast.error(e.message)); load(); };
 
   if (loading) return <div style={{ color: theme.muted }}>Loading…</div>;
 
@@ -539,14 +541,14 @@ function SubjectsTab() {
     load(); }, []);
 
   const handleSave = async form => {
-    if (modal.mode === "edit") await configAPI.updateSubject(modal.data.id, form).catch(e => alert(e.message));
-    else                       await configAPI.createSubject(form).catch(e => alert(e.message));
+    if (modal.mode === "edit") await configAPI.updateSubject(modal.data.id, form).catch(e => toast.error(e.message));
+    else                       await configAPI.createSubject(form).catch(e => toast.error(e.message));
     load();
   };
 
   const handleDelete = async id => {
     if (!window.confirm("Delete this subject?")) return;
-    await configAPI.deleteSubject(id).catch(e => alert(e.message));
+    await configAPI.deleteSubject(id).catch(e => toast.error(e.message));
     load();
   };
 
@@ -638,8 +640,8 @@ function FeeStructureTab() {
     load(); }, []);
 
   const handleSave = async form => {
-    if (modal.mode === "edit") await configAPI.updateFeeStructure(modal.data.id, form).catch(e => alert(e.message));
-    else                       await configAPI.createFeeStructure(form).catch(e => alert(e.message));
+    if (modal.mode === "edit") await configAPI.updateFeeStructure(modal.data.id, form).catch(e => toast.error(e.message));
+    else                       await configAPI.createFeeStructure(form).catch(e => toast.error(e.message));
     load();
   };
 
@@ -738,8 +740,8 @@ function CalendarTab() {
     load(); }, []);
 
   const handleSave = async form => {
-    if (modal.mode === "edit") await configAPI.updateHoliday(modal.data.id, form).catch(e => alert(e.message));
-    else                       await configAPI.createHoliday(form).catch(e => alert(e.message));
+    if (modal.mode === "edit") await configAPI.updateHoliday(modal.data.id, form).catch(e => toast.error(e.message));
+    else                       await configAPI.createHoliday(form).catch(e => toast.error(e.message));
     load();
   };
 
@@ -818,7 +820,7 @@ function UserModal({ initial, onSave, onClose }) {
   const handlePhotoChange = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Photo must be under 2 MB"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Photo must be under 2 MB"); return; }
     const reader = new FileReader();
     reader.onload = ev => set("photoBase64", ev.target.result);
     reader.readAsDataURL(file);
@@ -828,7 +830,7 @@ function UserModal({ initial, onSave, onClose }) {
     e.preventDefault();
     setSaving(true);
     try { await onSave(form); onClose(); }
-    catch (err) { alert(err.message); }
+    catch (err) { toast.error(err.message); }
     finally { setSaving(false); }
   };
 
@@ -863,7 +865,7 @@ function UserModal({ initial, onSave, onClose }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Full Name *"><input required value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Rahul Sharma" style={inp()} /></Field>
+          <Field label="Full Name *"><input required value={form.name} onChange={e => set("name", e.target.value)} placeholder="deekshith" style={inp()} /></Field>
           <Field label="Email *"><input required type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="rahul@school.in" style={inp()} /></Field>
           <Field label="Username"><input value={form.username} onChange={e => set("username", e.target.value)} placeholder="rahul.sharma" style={inp()} /></Field>
           <Field label="Phone"><input type="tel" value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="9876543210" style={inp()} /></Field>
@@ -906,8 +908,94 @@ function UserModal({ initial, onSave, onClose }) {
   );
 }
 
+// Modules that can be granted (dashboard is always visible, so exclude it here).
+const ACCESS_MODULES = MODULES.filter(m => m.id !== "dashboard");
+
+function AccessModal({ user, onClose }) {
+  const isAdmin = user.role === "SUPER_ADMIN" || user.role === "ADMIN";
+  const [perms, setPerms]   = useState({}); // { moduleId: { canRead, canWrite } }
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState(false);
+
+  useEffect(() => {
+    userMgmtAPI.getPermissions(user.id)
+      .then(list => {
+        const map = {};
+        (list || []).forEach(p => { map[p.module] = { canRead: p.canRead, canWrite: p.canWrite }; });
+        setPerms(map);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user.id]);
+
+  const setRead = (id, val) => setPerms(p => ({
+    ...p,
+    [id]: { canRead: val, canWrite: val ? (p[id]?.canWrite || false) : false },
+  }));
+  const setWrite = (id, val) => setPerms(p => ({
+    ...p,
+    [id]: { canWrite: val, canRead: val ? true : (p[id]?.canRead || false) },
+  }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const list = ACCESS_MODULES
+        .map(m => ({ module: m.id, canRead: !!perms[m.id]?.canRead, canWrite: !!perms[m.id]?.canWrite }))
+        .filter(p => p.canRead || p.canWrite);
+      await userMgmtAPI.setPermissions(user.id, list);
+      onClose();
+    } catch (e) {
+      toast.error("Failed to save access: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Module Access — ${user.name}`} onClose={onClose} width={520}>
+      {isAdmin && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", background: theme.blue + "12", border: `1px solid ${theme.blue}33`, borderRadius: 10, fontSize: 12.5, color: theme.blue, fontWeight: 600 }}>
+          {ROLE_LABEL[user.role]} accounts have full access to every module regardless of these settings.
+        </div>
+      )}
+      {loading ? (
+        <div style={{ padding: 20, color: theme.muted }}>Loading access…</div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 54px 54px", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 11, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .5 }}>
+            <div>Module</div><div style={{ textAlign: "center" }}>Read</div><div style={{ textAlign: "center" }}>Write</div>
+          </div>
+          <div style={{ maxHeight: "48vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+            {ACCESS_MODULES.map(m => {
+              const p = perms[m.id] || {};
+              return (
+                <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 54px 54px", gap: 8, alignItems: "center", padding: "8px 10px", borderRadius: 8, background: theme.bg, border: `1px solid ${theme.border}` }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.text }}>{m.icon} {m.label}</div>
+                  <input type="checkbox" checked={!!p.canRead} onChange={e => setRead(m.id, e.target.checked)}
+                    style={{ width: 18, height: 18, cursor: "pointer", accentColor: theme.accent, justifySelf: "center" }} />
+                  <input type="checkbox" checked={!!p.canWrite} onChange={e => setWrite(m.id, e.target.checked)}
+                    style={{ width: 18, height: 18, cursor: "pointer", accentColor: theme.green, justifySelf: "center" }} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 11.5, color: theme.muted, marginTop: 10 }}>
+            Read = view only. Write also grants create / update / delete (and auto-enables Read).
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+            <Btn onClick={handleSave} style={{ opacity: saving ? 0.7 : 1 }}>{saving ? "Saving…" : "Save Access"}</Btn>
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 function UsersTab() {
   const [users, setUsers]           = useState([]);
+  const [accessUser, setAccessUser] = useState(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
   const [search, setSearch]         = useState("");
@@ -932,14 +1020,14 @@ function UsersTab() {
 
   const handleDelete = async id => {
     if (!window.confirm("Delete this user?")) return;
-    await userMgmtAPI.delete(id).catch(e => alert(e.message));
+    await userMgmtAPI.delete(id).catch(e => toast.error(e.message));
     load();
   };
 
   const counts = users.reduce((acc, u) => { acc[u.role] = (acc[u.role] || 0) + 1; acc[u.status] = (acc[u.status] || 0) + 1; return acc; }, {});
 
   const filtered = users.filter(u => {
-    const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || (u?.name || "").toLowerCase().includes(search.toLowerCase()) || (u?.email || "").toLowerCase().includes(search.toLowerCase());
     const matchRole   = roleFilter === "ALL" || u.role === roleFilter;
     return matchSearch && matchRole;
   });
@@ -999,6 +1087,7 @@ function UsersTab() {
               {ROLE_ICON[u.role]} {ROLE_LABEL[u.role]}
             </div>
             <Tag label={STATUS_LABEL[u.status]} color={STATUS_COLOR[u.status]} />
+            <Btn small variant="ghost" onClick={() => setAccessUser(u)}>🔑 Access</Btn>
             <Btn small variant="blue" onClick={() => setModal({ mode: "edit", data: u })}>Edit</Btn>
             <Btn small variant="danger" onClick={() => handleDelete(u.id)}>Delete</Btn>
           </div>
@@ -1006,6 +1095,7 @@ function UsersTab() {
       )}
 
       {modal && <UserModal initial={modal.mode === "edit" ? modal.data : null} onSave={handleSave} onClose={() => setModal(null)} />}
+      {accessUser && <AccessModal user={accessUser} onClose={() => setAccessUser(null)} />}
     </>
   );
 }
@@ -1075,10 +1165,10 @@ function ReceiptEditor({ initial, profile, onSave, onCancel }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.name?.trim()) { alert("Please give the template a name"); return; }
+    if (!form.name?.trim()) { toast.error("Please give the template a name"); return; }
     setSaving(true);
     try { await onSave(form); }
-    catch (e) { alert("Failed to save: " + e.message); }
+    catch (e) { toast.error("Failed to save: " + e.message); }
     finally { setSaving(false); }
   };
 
@@ -1187,12 +1277,12 @@ function ReceiptTemplateTab() {
 
   const handleDelete = async id => {
     if (!window.confirm("Delete this receipt template?")) return;
-    await configAPI.deleteReceiptTemplate(id).catch(e => alert(e.message));
+    await configAPI.deleteReceiptTemplate(id).catch(e => toast.error(e.message));
     load();
   };
 
   const handleSetDefault = async id => {
-    await configAPI.setDefaultReceiptTemplate(id).catch(e => alert(e.message));
+    await configAPI.setDefaultReceiptTemplate(id).catch(e => toast.error(e.message));
     load();
   };
 
@@ -1245,49 +1335,44 @@ function ReceiptTemplateTab() {
 // ══════════════════════════════════════════════════════════════
 // Root
 // ══════════════════════════════════════════════════════════════
-const TABS = [
-  { id: "profile",      label: "School Profile",    icon: "🏫" },
-  { id: "grades",       label: "Grades & Sections", icon: "📚" },
-  { id: "subjects",     label: "Subjects",          icon: "📖" },
-  { id: "feeStructure", label: "Fee Structure",     icon: "💰" },
-  { id: "receipt",      label: "Payment Receipt",   icon: "🧾" },
-  { id: "calendar",     label: "Academic Calendar", icon: "📅" },
-  { id: "users",        label: "Users",             icon: "👤" },
-];
+const SECTION_META = {
+  profile:      { label: "School Profile",    icon: "🏫" },
+  grades:       { label: "Grades & Sections", icon: "📚" },
+  subjects:     { label: "Subjects",          icon: "📖" },
+  feeStructure: { label: "Fee Structure",     icon: "💰" },
+  templates:    { label: "Templates",         icon: "🧾" },
+  calendar:     { label: "Academic Calendar", icon: "📅" },
+  users:        { label: "Users",             icon: "👤" },
+};
 
-export default function Configuration({ onProfileSaved }) {
-  const [tab, setTab] = useState("profile");
-
+export default function Configuration({ section = "profile", onProfileSaved }) {
   const content = {
     profile:      <ProfileTab onProfileSaved={onProfileSaved} />,
     grades:       <GradesTab />,
     subjects:     <SubjectsTab />,
     feeStructure: <FeeStructureTab />,
-    receipt:      <ReceiptTemplateTab />,
+    templates:    <ReceiptTemplateTab />,
     calendar:     <CalendarTab />,
     users:        <UsersTab />,
   };
 
+  const active = content[section] ? section : "profile";
+  const meta = SECTION_META[active];
+
   return (
-    <div style={{ display: "flex", gap: 0, height: "100%", minHeight: 0 }}>
-      {/* Left nav */}
-      <div style={{ width: 210, flexShrink: 0, paddingRight: 24, borderRight: `1px solid ${theme.border}` }}>
-        <div style={{ fontSize: 20, fontWeight: 900, color: theme.text, marginBottom: 2 }}>Configuration</div>
-        <div style={{ fontSize: 12, color: theme.muted, marginBottom: 20 }}>School-wide settings</div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, background: tab === t.id ? theme.accent + "15" : "transparent", border: `1px solid ${tab === t.id ? theme.accent + "44" : "transparent"}`, color: tab === t.id ? theme.accent : theme.muted, fontWeight: tab === t.id ? 700 : 500, fontSize: 13, cursor: "pointer", textAlign: "left", width: "100%", fontFamily: "'DM Sans', sans-serif", transition: "all .15s" }}>
-              <span style={{ fontSize: 16 }}>{t.icon}</span>{t.label}
-            </button>
-          ))}
-        </nav>
+    <div>
+      {/* Section heading */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 11, background: theme.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+          {meta.icon}
+        </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: theme.text }}>{meta.label}</div>
+          <div style={{ fontSize: 12, color: theme.muted }}>Configuration · School-wide settings</div>
+        </div>
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, paddingLeft: 28, overflowY: "auto" }}>
-        {content[tab]}
-      </div>
+      {content[active]}
     </div>
   );
 }

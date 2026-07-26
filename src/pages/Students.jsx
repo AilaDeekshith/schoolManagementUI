@@ -1,5 +1,6 @@
 // pages/Students.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import PageHeader from "../components/PageHeader";
 import SearchInput from "../components/SearchInput";
 import DataTable from "../components/DataTable";
@@ -19,6 +20,7 @@ const mapFeeStatus = (s) =>
 
 const toRow = (s) => ({
   id: s.id,
+  code: s.studentCode,
   name: s.name,
   class: s.className,
   roll: s.rollNumber,
@@ -32,6 +34,17 @@ const toRow = (s) => ({
   status: mapStatus(s.status),
   fees: mapFeeStatus(s.feeStatus),
   photoBase64: s.photoBase64 ?? "",
+  // extended details (for edit prefill)
+  fatherName: s.fatherName,
+  motherName: s.motherName,
+  fatherOccupation: s.fatherOccupation,
+  motherOccupation: s.motherOccupation,
+  emergencyContact: s.emergencyContact,
+  aadharNumber: s.aadharNumber,
+  category: s.category,
+  nationality: s.nationality,
+  religion: s.religion,
+  admissionDate: s.admissionDate,
 });
 
 export default function Students() {
@@ -40,16 +53,18 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [selected, setSelected] = useState(null);
 
-  // ── fetch ──────────────────────────────────────────────────
+  // ── fetch (search runs on the backend) ─────────────────────
   const fetchStudents = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await studentAPI.getAll();
+      const name = debouncedSearch.trim();
+      const data = name ? await studentAPI.search(name) : await studentAPI.getAll();
       setStudents(data.map(toRow));
     } catch (err) {
       setError(err.message);
@@ -59,14 +74,25 @@ export default function Students() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchStudents();
     configAPI.getGrades().then(grades => {
       setClassOptions(grades.flatMap(g =>
         (g.sections ?? []).map(s => `${g.name}-${s.letter}`)
       ));
     }).catch(() => {});
   }, []);
+
+  // Debounce typing so we hit the backend once the user pauses.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Any change to the search triggers a backend call (also runs on mount).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchStudents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const toPayload = (formData) => ({
     name: formData.name,
@@ -80,6 +106,18 @@ export default function Students() {
     contactNumber: formData.contact,
     status: formData.status || 'ACTIVE',
     photoBase64: formData.photoBase64 || null,
+    // extended details
+    fatherName: formData.fatherName || null,
+    motherName: formData.motherName || null,
+    fatherOccupation: formData.fatherOccupation || null,
+    motherOccupation: formData.motherOccupation || null,
+    emergencyContact: formData.emergencyContact || null,
+    aadharNumber: formData.aadharNumber || null,
+    category: formData.category || null,
+    email: formData.email || null,
+    nationality: formData.nationality || null,
+    religion: formData.religion || null,
+    admissionDate: formData.admissionDate || null,
   });
 
   // ── add ────────────────────────────────────────────────────
@@ -88,7 +126,7 @@ export default function Students() {
       await studentAPI.create(toPayload(formData));
       fetchStudents();
     } catch (err) {
-      alert("Failed to add student: " + err.message);
+      toast.error("Failed to add student: " + err.message);
     }
   };
 
@@ -98,7 +136,7 @@ export default function Students() {
       await studentAPI.update(editTarget.id, toPayload(formData));
       fetchStudents();
     } catch (err) {
-      alert("Failed to update student: " + err.message);
+      toast.error("Failed to update student: " + err.message);
     }
   };
 
@@ -109,22 +147,12 @@ export default function Students() {
       await studentAPI.delete(id);
       setStudents((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      toast.error("Failed to delete: " + err.message);
     }
   };
 
-  // ── filter ─────────────────────────────────────────────────
-  const filtered = students.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      String(s.class || "")
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      String(s.id || "").includes(search),
-  );
-
   const columns = [
-    { key: "id", label: "ID" },
+    { key: "code", label: "Student ID", render: (v) => v || "—" },
     {
       key: "name", label: "Name",
       render: (v, row) => (
@@ -188,18 +216,24 @@ export default function Students() {
       <SearchInput
         value={search}
         onChange={setSearch}
-        placeholder="Search by name, class or ID…"
+        placeholder="Search by student name…"
       />
 
       <CardWrapper>
         {loading && <LoadingSpinner message="Loading students…" />}
         {error && <ErrorMessage message={error} onRetry={fetchStudents} />}
         {!loading && !error && (
-          <DataTable
-            columns={columns}
-            data={filtered}
-            onRowClick={setSelected}
-          />
+          students.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: theme.muted }}>
+              {debouncedSearch ? `No students match “${debouncedSearch}”.` : "No students found."}
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={students}
+              onRowClick={setSelected}
+            />
+          )
         )}
       </CardWrapper>
 
@@ -212,7 +246,7 @@ export default function Students() {
             textAlign: "right",
           }}
         >
-          {filtered.length} of {students.length} records
+          {students.length} record{students.length !== 1 ? "s" : ""}
         </div>
       )}
 

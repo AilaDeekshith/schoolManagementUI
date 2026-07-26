@@ -1,14 +1,20 @@
 // components/forms/AddStudentForm.jsx
 import { useState, useEffect, useRef } from "react";
+import { toast } from "../../toast";
 import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
 import { configAPI } from "../../api/apiService";
 
 const BLANK = {
-  name: "", dob: "", gender: "", class: "", roll: "",
-  guardian: "", contact: "", address: "", bloodGroup: "", status: "ACTIVE", photoBase64: "",
+  name: "", dob: "", gender: "", class: "", roll: "", admissionDate: "",
+  bloodGroup: "", nationality: "", religion: "", aadharNumber: "", category: "",
+  fatherName: "", motherName: "", fatherOccupation: "", motherOccupation: "",
+  guardian: "", contact: "", emergencyContact: "", email: "",
+  address: "", status: "ACTIVE", photoBase64: "",
 };
+
+const CATEGORIES = ["General", "OBC", "SC", "ST", "EWS", "Other"];
 
 // ── Photo uploader ────────────────────────────────────────────
 function PhotoUpload({ value, onChange }) {
@@ -17,7 +23,7 @@ function PhotoUpload({ value, onChange }) {
   const handleFile = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Photo must be under 2 MB"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Photo must be under 2 MB"); return; }
     const reader = new FileReader();
     reader.onload = ev => onChange(ev.target.result);
     reader.readAsDataURL(file);
@@ -129,20 +135,31 @@ function ClassSelect({ value, onChange, grades, loadingGrades }) {
   );
 }
 
-export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classOptions = [] }) {
+export default function AddStudentForm({ onClose, onAdd, onEdit, initial }) {
   const isEdit = !!initial;
   const [form, setForm] = useState(isEdit ? {
-    name:        initial.name        ?? "",
-    dob:         initial.dob         ?? "",
-    gender:      initial.gender      ?? "",
-    class:       initial.class       ?? "",
-    roll:        initial.roll        ?? "",
-    guardian:    initial.guardian    ?? "",
-    contact:     initial.contact     ?? "",
-    address:     initial.address     ?? "",
-    bloodGroup:  initial.bloodGroup  ?? "",
-    status:      initial.status === "Active" ? "ACTIVE" : initial.status === "Inactive" ? "INACTIVE" : (initial.status ?? "ACTIVE"),
-    photoBase64: initial.photoBase64 ?? "",
+    name:             initial.name             ?? "",
+    dob:              initial.dob              ?? "",
+    gender:           initial.gender           ?? "",
+    class:            initial.class            ?? "",
+    roll:             initial.roll             ?? "",
+    admissionDate:    initial.admissionDate    ?? "",
+    bloodGroup:       initial.bloodGroup       ?? "",
+    nationality:      initial.nationality      ?? "",
+    religion:         initial.religion         ?? "",
+    aadharNumber:     initial.aadharNumber     ?? "",
+    category:         initial.category         ?? "",
+    fatherName:       initial.fatherName       ?? "",
+    motherName:       initial.motherName       ?? "",
+    fatherOccupation: initial.fatherOccupation ?? "",
+    motherOccupation: initial.motherOccupation ?? "",
+    guardian:         initial.guardian         ?? "",
+    contact:          initial.contact          ?? "",
+    emergencyContact: initial.emergencyContact ?? "",
+    email:            initial.email            ?? "",
+    address:          initial.address          ?? "",
+    status:           initial.status === "Active" ? "ACTIVE" : initial.status === "Inactive" ? "INACTIVE" : (initial.status ?? "ACTIVE"),
+    photoBase64:      initial.photoBase64       ?? "",
   } : BLANK);
 
   const [errors,       setErrors]       = useState({});
@@ -161,12 +178,18 @@ export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classO
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim())     e.name     = "Name is required";
-    if (!form.dob)             e.dob      = "Date of birth is required";
-    if (!form.gender)          e.gender   = "Select gender";
-    if (!form.class)           e.class    = "Select class";
-    if (!form.guardian.trim()) e.guardian = "Guardian name is required";
-    if (!form.contact.trim())  e.contact  = "Contact is required";
+    if (!form.name.trim())       e.name       = "Name is required";
+    if (!form.dob)               e.dob        = "Date of birth is required";
+    if (!form.gender)            e.gender     = "Select gender";
+    if (!form.class)             e.class      = "Select class";
+    if (!form.fatherName.trim()) e.fatherName = "Father's name is required";
+    if (!form.motherName.trim()) e.motherName = "Mother's name is required";
+    if (!form.guardian.trim())   e.guardian   = "Guardian name is required";
+    if (!form.contact.trim())    e.contact    = "Contact is required";
+    if (form.aadharNumber && !/^\d{12}$/.test(form.aadharNumber.trim()))
+      e.aadharNumber = "Aadhaar must be 12 digits";
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      e.email = "Enter a valid email";
     return e;
   };
 
@@ -186,16 +209,24 @@ export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classO
     </FormField>
   );
 
+  const section = (title) => (
+    <div style={{ fontSize: 12, fontWeight: 800, color: theme.accent, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 4, paddingBottom: 4, borderBottom: `1px solid ${theme.border}` }}>
+      {title}
+    </div>
+  );
+
   return (
     <Modal title={isEdit ? "Edit Student" : "Add New Student"} onClose={onClose}>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* Photo upload */}
         <PhotoUpload value={form.photoBase64} onChange={set("photoBase64")} />
 
+        {/* ── Personal details ── */}
+        {section("Personal Details")}
         <FormRow>
           {field("name", "Full Name", true,
-            <TextInput value={form.name} onChange={set("name")} placeholder="e.g. Ananya Reddy" />)}
+            <TextInput value={form.name} onChange={set("name")} placeholder="deekshith" />)}
           {field("dob", "Date of Birth", true,
             <TextInput type="date" value={form.dob} onChange={set("dob")} />)}
         </FormRow>
@@ -204,36 +235,75 @@ export default function AddStudentForm({ onClose, onAdd, onEdit, initial, classO
           {field("gender", "Gender", true,
             <SelectInput value={form.gender} onChange={set("gender")} placeholder="Select gender"
               options={["Male", "Female", "Other"]} />)}
-          {field("class", "Class / Section", true,
-            <ClassSelect
-              value={form.class}
-              onChange={set("class")}
-              grades={grades}
-              loadingGrades={loadingGrades}
-            />)}
-        </FormRow>
-
-        <FormRow>
-          {field("roll", "Roll Number", false,
-            <TextInput value={form.roll} onChange={set("roll")} placeholder="e.g. 12" type="number" />)}
           {field("bloodGroup", "Blood Group", false,
             <SelectInput value={form.bloodGroup} onChange={set("bloodGroup")} placeholder="Select"
               options={["A+","A-","B+","B-","AB+","AB-","O+","O-"]} />)}
         </FormRow>
 
         <FormRow>
+          {field("nationality", "Nationality", false,
+            <TextInput value={form.nationality} onChange={set("nationality")} placeholder="e.g. Indian" />)}
+          {field("religion", "Religion", false,
+            <TextInput value={form.religion} onChange={set("religion")} placeholder="Optional" />)}
+        </FormRow>
+
+        <FormRow>
+          {field("aadharNumber", "Aadhaar Number", false,
+            <TextInput value={form.aadharNumber} onChange={set("aadharNumber")} placeholder="12-digit UID" type="tel" />)}
+          {field("category", "Category", false,
+            <SelectInput value={form.category} onChange={set("category")} placeholder="Select" options={CATEGORIES} />)}
+        </FormRow>
+
+        {/* ── Academic ── */}
+        {section("Academic")}
+        <FormRow>
+          {field("class", "Class / Section", true,
+            <ClassSelect value={form.class} onChange={set("class")} grades={grades} loadingGrades={loadingGrades} />)}
+          {field("roll", "Roll Number", false,
+            <TextInput value={form.roll} onChange={set("roll")} placeholder="e.g. 12" type="number" />)}
+        </FormRow>
+
+        <FormRow>
+          {field("admissionDate", "Admission Date", false,
+            <TextInput type="date" value={form.admissionDate} onChange={set("admissionDate")} />)}
+          {field("status", "Status", false,
+            <SelectInput value={form.status} onChange={set("status")} options={["ACTIVE", "INACTIVE"]} />)}
+        </FormRow>
+
+        {/* ── Parents & Guardian ── */}
+        {section("Parents & Guardian")}
+        <FormRow>
+          {field("fatherName", "Father's Name", true,
+            <TextInput value={form.fatherName} onChange={set("fatherName")} placeholder="deekshith" />)}
+          {field("fatherOccupation", "Father's Occupation", false,
+            <TextInput value={form.fatherOccupation} onChange={set("fatherOccupation")} placeholder="Optional" />)}
+        </FormRow>
+
+        <FormRow>
+          {field("motherName", "Mother's Name", true,
+            <TextInput value={form.motherName} onChange={set("motherName")} placeholder="deekshith" />)}
+          {field("motherOccupation", "Mother's Occupation", false,
+            <TextInput value={form.motherOccupation} onChange={set("motherOccupation")} placeholder="Optional" />)}
+        </FormRow>
+
+        <FormRow>
           {field("guardian", "Guardian Name", true,
-            <TextInput value={form.guardian} onChange={set("guardian")} placeholder="e.g. Ravi Reddy" />)}
+            <TextInput value={form.guardian} onChange={set("guardian")} placeholder="deekshith" />)}
           {field("contact", "Contact Number", true,
             <TextInput value={form.contact} onChange={set("contact")} placeholder="10-digit mobile" type="tel" />)}
         </FormRow>
 
-        {field("address", "Address", false,
-          <TextInput value={form.address} onChange={set("address")} placeholder="Full residential address" />)}
+        <FormRow>
+          {field("emergencyContact", "Emergency Contact", false,
+            <TextInput value={form.emergencyContact} onChange={set("emergencyContact")} placeholder="Alternate number" type="tel" />)}
+          {field("email", "Email", false,
+            <TextInput value={form.email} onChange={set("email")} placeholder="parent@example.com" type="email" />)}
+        </FormRow>
 
-        {field("status", "Status", false,
-          <SelectInput value={form.status} onChange={set("status")}
-            options={["ACTIVE", "INACTIVE"]} />)}
+        {/* ── Address ── */}
+        {section("Address")}
+        {field("address", "Residential Address", false,
+          <TextInput value={form.address} onChange={set("address")} placeholder="Full residential address" />)}
 
         <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Student" : "Add Student"} />
       </form>

@@ -1,6 +1,9 @@
 // components/Sidebar.jsx
 import { useState } from "react";
-import { MODULES } from "../data/mockData";
+import { MODULES, CONFIG_SECTIONS, EXAM_SECTIONS, CLASS_SECTIONS } from "../data/mockData";
+
+// Modules that expand into sub-sections.
+const SUBMENUS = { configuration: CONFIG_SECTIONS, exams: EXAM_SECTIONS, classes: CLASS_SECTIONS };
 
 // Icon background colour per module (subtle pill on active)
 const MODULE_ACCENT = {
@@ -18,8 +21,11 @@ const MODULE_ACCENT = {
   configuration: "#64748B",
 };
 
-export default function Sidebar({ active, setActive, open, setOpen }) {
+export default function Sidebar({ active, setActive, open, setOpen, allowedIds, subSections = {}, onSubSection }) {
   const [hovered, setHovered] = useState(null);
+  const modules = allowedIds
+    ? MODULES.filter((m) => allowedIds.includes(m.id))
+    : MODULES;
 
   return (
     <div style={{
@@ -54,7 +60,7 @@ export default function Sidebar({ active, setActive, open, setOpen }) {
         className="sidebar-scroll"
         style={{ flex: 1, padding: open ? "4px 10px 10px" : "8px 10px 10px", overflowY: "auto" }}
       >
-        {MODULES.map(m => {
+        {modules.map(m => {
           const isActive  = active === m.id;
           const isHovered = hovered === m.id;
           const accent    = MODULE_ACCENT[m.id] || "#6C63FF";
@@ -137,6 +143,34 @@ export default function Sidebar({ active, setActive, open, setOpen }) {
                   }} />
                 )}
               </button>
+
+              {/* ── Sub-sections (Configuration / Exams) ── */}
+              {SUBMENUS[m.id] && isActive && open && (
+                <div style={{ margin: "4px 0 6px 22px", display: "flex", flexDirection: "column", gap: 2, borderLeft: "1px solid rgba(255,255,255,0.14)", paddingLeft: 8 }}>
+                  {SUBMENUS[m.id].map((s) => {
+                    const on = (subSections[m.id] ?? SUBMENUS[m.id][0].id) === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => onSubSection?.(m.id, s.id)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 9,
+                          padding: "7px 10px", borderRadius: 8, width: "100%",
+                          textAlign: "left", cursor: "pointer",
+                          background: on ? "rgba(255,255,255,0.14)" : "transparent",
+                          border: "1px solid " + (on ? "rgba(255,255,255,0.18)" : "transparent"),
+                          color: on ? "#FFFFFF" : "rgba(255,255,255,0.6)",
+                          fontWeight: on ? 700 : 450, fontSize: 12.5,
+                          fontFamily: "'DM Sans', sans-serif",
+                        }}
+                      >
+                        <span style={{ fontSize: 13 }}>{s.icon}</span>
+                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

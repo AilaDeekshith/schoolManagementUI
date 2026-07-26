@@ -62,7 +62,7 @@ export default function AddAdmissionForm({ onClose, onAdd, onEdit, initial, clas
 
         <FormRow>
           {field("name", "Full Name", true,
-            <TextInput value={form.name} onChange={set("name")} placeholder="Student's full name" />)}
+            <TextInput value={form.name} onChange={set("name")} placeholder="deekshith" />)}
           {field("dob", "Date of Birth", false,
             <TextInput type="date" value={form.dob} onChange={set("dob")} />)}
         </FormRow>
@@ -82,7 +82,7 @@ export default function AddAdmissionForm({ onClose, onAdd, onEdit, initial, clas
 
         <FormRow>
           {field("guardian", "Guardian Name", true,
-            <TextInput value={form.guardian} onChange={set("guardian")} placeholder="Parent / Guardian" />)}
+            <TextInput value={form.guardian} onChange={set("guardian")} placeholder="deekshith" />)}
           {field("contact", "Contact Number", true,
             <TextInput value={form.contact} onChange={set("contact")} placeholder="10-digit mobile" type="tel" />)}
         </FormRow>

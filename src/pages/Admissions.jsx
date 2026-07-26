@@ -1,5 +1,6 @@
 // pages/Admissions.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
 import DataTable from "../components/DataTable";
@@ -12,6 +13,8 @@ import { admissionAPI, configAPI } from "../api/apiService";
 
 // ── helpers ───────────────────────────────────────────────────
 const FILTERS = ["All", "Approved", "Pending", "Under Review", "Rejected"];
+// Readable filter label → backend enum for the status API.
+const STATUS_ENUM = { Approved: "APPROVED", Pending: "PENDING", "Under Review": "UNDER_REVIEW", Rejected: "REJECTED" };
 
 const mapStatus = (s) =>
   s === "PENDING"
@@ -48,12 +51,16 @@ export default function Admissions() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
 
-  // ── fetch ──────────────────────────────────────────────────
-  const fetchAdmissions = async () => {
+  const [counts, setCounts] = useState({});
+
+  // ── fetch (status filter runs on the backend) ──────────────
+  const fetchList = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await admissionAPI.getAll();
+      const data = activeFilter === "All"
+        ? await admissionAPI.getAll()
+        : await admissionAPI.getByStatus(STATUS_ENUM[activeFilter]);
       setAdmissions(data.map(toRow));
     } catch (err) {
       setError(err.message);
@@ -62,8 +69,26 @@ export default function Admissions() {
     }
   };
 
+  // Chip counts come from the full set (kept in sync separately).
+  const refreshCounts = async () => {
+    const all = (await admissionAPI.getAll().catch(() => [])).map(toRow);
+    const c = {};
+    all.forEach((a) => { c[a.status] = (c[a.status] || 0) + 1; });
+    setCounts(c);
+  };
+
+  const refresh = () => { fetchList(); refreshCounts(); };
+
+  // Re-fetch from the backend whenever the status filter changes.
   useEffect(() => {
-    fetchAdmissions();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshCounts();
     configAPI.getGrades().then(grades => {
       setClassOptions(grades.flatMap(g =>
         (g.sections ?? []).map(s => `${g.name}-${s.letter}`)
@@ -87,9 +112,9 @@ export default function Admissions() {
   const handleAdd = async (formData) => {
     try {
       await admissionAPI.create(toPayload(formData));
-      fetchAdmissions();
+      refresh();
     } catch (err) {
-      alert("Failed to submit application: " + err.message);
+      toast.error("Failed to submit application: " + err.message);
     }
   };
 
@@ -97,9 +122,9 @@ export default function Admissions() {
   const handleEdit = async (formData) => {
     try {
       await admissionAPI.update(editTarget.id, toPayload(formData));
-      fetchAdmissions();
+      refresh();
     } catch (err) {
-      alert("Failed to update application: " + err.message);
+      toast.error("Failed to update application: " + err.message);
     }
   };
 
@@ -107,22 +132,18 @@ export default function Admissions() {
   const handleApprove = async (id) => {
     try {
       await admissionAPI.approve(id);
-      setAdmissions((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: "Approved" } : a)),
-      );
+      refresh();
     } catch (err) {
-      alert("Failed to approve: " + err.message);
+      toast.error("Failed to approve: " + err.message);
     }
   };
 
   const handleReject = async (id) => {
     try {
       await admissionAPI.reject(id);
-      setAdmissions((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: "Rejected" } : a)),
-      );
+      refresh();
     } catch (err) {
-      alert("Failed to reject: " + err.message);
+      toast.error("Failed to reject: " + err.message);
     }
   };
 
@@ -131,17 +152,13 @@ export default function Admissions() {
     if (!window.confirm("Delete this application?")) return;
     try {
       await admissionAPI.delete(id);
-      setAdmissions((prev) => prev.filter((a) => a.id !== id));
+      refresh();
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      toast.error("Failed to delete: " + err.message);
     }
   };
 
-  // ── filtered rows ──────────────────────────────────────────
-  const filtered =
-    activeFilter === "All"
-      ? admissions
-      : admissions.filter((a) => a.status === activeFilter);
+  const filtered = admissions; // rows are already filtered by the backend
 
   const columns = [
     { key: "id", label: "App. ID" },
@@ -213,7 +230,7 @@ export default function Admissions() {
             {f !== "All" && (
               <span style={{ opacity: 0.7 }}>
                 {" "}
-                ({admissions.filter((a) => a.status === f).length})
+                ({counts[f] ?? 0})
               </span>
             )}
           </button>
@@ -222,7 +239,7 @@ export default function Admissions() {
 
       <CardWrapper>
         {loading && <LoadingSpinner message="Loading admissions…" />}
-        {error && <ErrorMessage message={error} onRetry={fetchAdmissions} />}
+        {error && <ErrorMessage message={error} onRetry={fetchList} />}
         {!loading && !error && <DataTable columns={columns} data={filtered} />}
       </CardWrapper>
 

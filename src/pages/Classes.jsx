@@ -1,5 +1,6 @@
 // pages/Classes.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -66,10 +67,10 @@ function ClassCard({ cls, onDelete, onSelect, onEdit }) {
         }}
       >
         {[
-          ["👩‍🏫", "Class Teacher", cls.classTeacher],
-          ["👥", "Strength", `${cls.strength} students`],
-          ["📦", "Capacity", `${cls.capacity} seats`],
-          ["⭐", "Monitor", cls.monitor],
+          ["👩‍🏫", "Class Teacher", cls?.classTeacher],
+          ["👥", "Strength", `${cls?.strength} students`],
+          ["📦", "Capacity", `${cls?.capacity} seats`],
+          ["⭐", "Monitor", cls?.monitor],
         ].map(([icon, label, val]) => (
           <div key={label} style={{ display: "flex", gap: 8, fontSize: 13 }}>
             <span>{icon}</span>
@@ -122,17 +123,17 @@ export default function Classes({ onSelectClass }) {
 
       setClasses(
         classData.map((c) => ({
-          id: c.id,
-          name: c.className,
-          room: c.roomNumber,
-          classTeacher: c.classTeacher.name || "—",
-          strength: c.currentStrength || 0,
-          capacity: c.maxCapacity || 40,
-          monitor: c.classMonitor || "—",
+          id: c?.id,
+          name: c?.className,
+          room: c?.roomNumber,
+          classTeacher: c?.classTeacher?.name || "—",
+          strength: c?.currentStrength || 0,
+          capacity: c?.maxCapacity || 40,
+          monitor: c?.classMonitor || "—",
         })),
       );
 
-      setTeachers(teacherData.map((t) => ({ id: t.id, name: t.name })));
+      setTeachers(teacherData.map((t) => ({ id: t?.id, name: t?.name })));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -147,7 +148,7 @@ export default function Classes({ onSelectClass }) {
 
   const applyTeacher = async (classId, teacherName) => {
     if (teacherName) {
-      const teacher = teachers.find((t) => t.name === teacherName);
+      const teacher = teachers.find((t) => t?.name === teacherName);
       if (teacher) await classAPI.assignTeacher(classId, teacher.id);
     }
   };
@@ -156,15 +157,15 @@ export default function Classes({ onSelectClass }) {
   const handleAdd = async (formData) => {
     try {
       const created = await classAPI.create({
-        className: formData.name,
-        roomNumber: formData.room,
-        maxCapacity: formData.capacity ? Number(formData.capacity) : 40,
-        classMonitor: formData.monitor || null,
+        className: formData?.name,
+        roomNumber: formData?.room,
+        maxCapacity: formData?.capacity ? Number(formData.capacity) : 40,
+        classMonitor: formData?.monitor || null,
       });
       await applyTeacher(created.id, formData.classTeacher);
       fetchData();
     } catch (err) {
-      alert("Failed to create class: " + err.message);
+      toast.error("Failed to create class: " + err.message);
     }
   };
 
@@ -172,15 +173,15 @@ export default function Classes({ onSelectClass }) {
   const handleEdit = async (formData) => {
     try {
       await classAPI.update(editTarget.id, {
-        className: formData.combinedName,
-        roomNumber: formData.room,
-        maxCapacity: formData.capacity ? Number(formData.capacity) : 40,
-        classMonitor: formData.monitor || null,
+        className: formData?.combinedName,
+        roomNumber: formData?.room,
+        maxCapacity: formData?.capacity ? Number(formData?.capacity) : 40,
+        classMonitor: formData?.monitor || null,
       });
       await applyTeacher(editTarget.id, formData.classTeacher);
       fetchData();
     } catch (err) {
-      alert("Failed to update class: " + err.message);
+      toast.error("Failed to update class: " + err.message);
     }
   };
 
@@ -191,7 +192,7 @@ export default function Classes({ onSelectClass }) {
       await classAPI.delete(id);
       setClasses((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      toast.error("Failed to delete: " + err.message);
     }
   };
 
@@ -229,8 +230,8 @@ export default function Classes({ onSelectClass }) {
                   onSelect={onSelectClass}
                   onEdit={cls => setEditTarget({
                     ...cls,
-                    name: cls.name.split('-')[0],
-                    section: cls.name.includes('-') ? cls.name.split('-').slice(1).join('-') : '',
+                    name: cls?.name?.split('-')?.[0],
+                    section: cls?.name?.includes('-') ? cls?.name?.split('-')?.slice(1).join('-') : '',
                   })}
                 />
               ))

@@ -1,5 +1,6 @@
 // pages/Dashboard.jsx
 import { useState, useEffect, useRef } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import StatCard from "../components/StatCard";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -258,9 +259,9 @@ function BirthdayCard({ birthdays }) {
                   fontSize: 17, fontWeight: 800, color: "#fff", overflow: "hidden",
                   boxShadow: "0 2px 8px rgba(236,72,153,0.25)",
                 }}>
-                  {b.photoBase64
-                    ? <img src={b.photoBase64} alt={b.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : b.name.charAt(0).toUpperCase()}
+                  {b?.photoBase64
+                    ? <img src={b.photoBase64} alt={b?.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : b?.name?.charAt(0)?.toUpperCase()}
                 </div>
                 {/* Star badge on first */}
                 {i === 0 && (
@@ -524,14 +525,14 @@ function NoticeModal({ initial, onSave, onClose }) {
   const handleImage = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = (ev) => setImage(ev.target.result);
     reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
-    if (!title.trim() && !content.trim() && !image) { alert("Add a title, information or image"); return; }
+    if (!title.trim() && !content.trim() && !image) { toast.error("Add a title, information or image"); return; }
     setSaving(true);
     try {
       await onSave({ title: title.trim(), content: content.trim(), imageBase64: image });
@@ -630,7 +631,7 @@ function NoticeBoard() {
   const handleDelete = async (id) => {
     if (!confirm("Delete this notice?")) return;
     try { await noticesAPI.delete(id); setNotices((p) => p.filter((n) => n.id !== id)); }
-    catch (err) { alert("Failed to delete: " + err.message); }
+    catch (err) { toast.error("Failed to delete: " + err.message); }
   };
 
   return (

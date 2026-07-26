@@ -1,5 +1,6 @@
 // pages/Exams.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
 import Badge from "../components/Badge";
@@ -22,6 +23,13 @@ const statusLabel = (s) =>
           : s;
 
 // ── Exam Card ─────────────────────────────────────────────────
+const CARD_STATUS_OPTIONS = [
+  ["Scheduled", "SCHEDULED"],
+  ["Upcoming",  "UPCOMING"],
+  ["Completed", "COMPLETED"],
+  ["Cancelled", "CANCELLED"],
+];
+
 function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
   const [hovered, setHovered] = useState(false);
 
@@ -106,8 +114,24 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
           ))}
       </div>
 
+      {/* Status control */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+        <span style={{ fontSize: 12, color: theme.muted, fontWeight: 600 }}>Status</span>
+        <select
+          value={exam.status}
+          onChange={(e) => {
+            const enumVal = CARD_STATUS_OPTIONS.find(([label]) => label === e.target.value)?.[1];
+            if (enumVal) onStatusChange(exam.id, enumVal);
+          }}
+          title="Change exam status"
+          style={{ flex: 1, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "7px 8px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {CARD_STATUS_OPTIONS.map(([label]) => <option key={label} value={label}>{label}</option>)}
+        </select>
+      </div>
+
       {/* Actions */}
-      <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
         <button
           onClick={() => onMarks(exam)}
           style={{ flex: 2, background: "#f0f4ff", color: theme.accent, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
@@ -116,12 +140,6 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
           onClick={() => onEdit(exam)}
           style={{ flex: 1, background: theme.blue + "15", color: theme.blue, border: `1px solid ${theme.blue}33`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
         >Edit</button>
-        {exam.status !== "Completed" && exam.status !== "Cancelled" && (
-          <button
-            onClick={() => onStatusChange(exam.id, "COMPLETED")}
-            style={{ flex: 1, background: theme.green + "18", color: theme.green, border: `1px solid ${theme.green}33`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
-          >✓ Done</button>
-        )}
         <button
           onClick={() => onDelete(exam.id)}
           style={{ flex: 1, background: theme.red + "12", color: theme.red, border: `1px solid ${theme.red}22`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
@@ -142,39 +160,26 @@ export default function Exams() {
   const [editTarget, setEditTarget] = useState(null);
   const [marksExam, setMarksExam]   = useState(null);
   const [filter, setFilter]         = useState("All");
+  const [counts, setCounts]         = useState({});
 
-  // ── Fetch ──────────────────────────────────────────────────
-  const fetchData = async () => {
-    
+  const STATUS_ENUM = { Scheduled: "SCHEDULED", Upcoming: "UPCOMING", Completed: "COMPLETED", Cancelled: "CANCELLED" };
+
+  const toExamRow = (e) => ({
+    id: e.id, name: e.name, subject: e.subject,
+    class: e.className || "All", date: e.examDate, maxMarks: e.maxMarks,
+    duration: e.duration, examiner: e.examinerName,
+    rawStatus: e.status, status: statusLabel(e.status),
+  });
+
+  // ── Fetch (status filter runs on the backend) ──────────────
+  const fetchExams = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const [examData, teacherData, gradeData] = await Promise.all([
-        examAPI.getAll(),
-        teacherAPI.getAll(),
-        configAPI.getGrades().catch(() => []),
-      ]);
-      setClassOptions(gradeData.flatMap(g =>
-        (g.sections ?? []).map(s => `${g.name}-${s.letter}`)
-      ));
-
-      setExams(
-        examData.map((e) => ({
-          id: e.id,
-          name: e.name,
-          subject: e.subject,
-          class: e.className || "All",
-          date: e.examDate,
-          maxMarks: e.maxMarks,
-          duration: e.duration,
-          examiner: e.examinerName,
-          rawStatus: e.status,
-          status: statusLabel(e.status),
-        })),
-      );
-
-      setTeachers(teacherData.map((t) => ({ id: t.id, name: t.name })));
+      const data = filter === "All"
+        ? await examAPI.getAll()
+        : await examAPI.getByStatus(STATUS_ENUM[filter]);
+      setExams(data.map(toExamRow));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -182,10 +187,38 @@ export default function Exams() {
     }
   };
 
+  const refreshCounts = async () => {
+    const all = (await examAPI.getAll().catch(() => [])).map(toExamRow);
+    const c = {};
+    all.forEach((e) => { c[e.status] = (c[e.status] || 0) + 1; });
+    setCounts(c);
+  };
+
+  const loadMeta = async () => {
+    const [teacherData, gradeData] = await Promise.all([
+      teacherAPI.getAll().catch(() => []),
+      configAPI.getGrades().catch(() => []),
+    ]);
+    setClassOptions(gradeData.flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`)));
+    setTeachers(teacherData.map((t) => ({ id: t.id, name: t.name })));
+  };
+
+  const refresh = () => { fetchExams(); refreshCounts(); };
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    loadMeta();
+    refreshCounts();
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-fetch from the backend whenever the status filter changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchData();
-  }, []);
+    fetchExams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
 
   const toPayload = (formData, status = 'SCHEDULED') => ({
     name: formData.name,
@@ -203,9 +236,9 @@ export default function Exams() {
   const handleAdd = async (formData) => {
     try {
       await examAPI.create(toPayload(formData));
-      fetchData();
+      refresh();
     } catch (err) {
-      alert("Failed to schedule exam: " + err.message);
+      toast.error("Failed to schedule exam: " + err.message);
     }
   };
 
@@ -213,9 +246,9 @@ export default function Exams() {
   const handleEdit = async (formData) => {
     try {
       await examAPI.update(editTarget.id, toPayload(formData, editTarget.rawStatus ?? 'SCHEDULED'));
-      fetchData();
+      refresh();
     } catch (err) {
-      alert("Failed to update exam: " + err.message);
+      toast.error("Failed to update exam: " + err.message);
     }
   };
 
@@ -224,9 +257,9 @@ export default function Exams() {
     if (!window.confirm("Delete this exam?")) return;
     try {
       await examAPI.delete(id);
-      setExams((prev) => prev.filter((e) => e.id !== id));
+      refresh();
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      toast.error("Failed to delete: " + err.message);
     }
   };
 
@@ -234,20 +267,15 @@ export default function Exams() {
   const handleStatusChange = async (id, status) => {
     try {
       await examAPI.updateStatus(id, status);
-      setExams((prev) =>
-        prev.map((e) =>
-          e.id === id ? { ...e, status: statusLabel(status) } : e,
-        ),
-      );
+      refresh();
     } catch (err) {
-      alert("Failed to update status: " + err.message);
+      toast.error("Failed to update status: " + err.message);
     }
   };
 
   // ── Filter tabs ─────────────────────────────────────────────
   const FILTERS = ["All", "Scheduled", "Upcoming", "Completed", "Cancelled"];
-  const filtered =
-    filter === "All" ? exams : exams.filter((e) => e.status === filter);
+  const filtered = exams; // rows are already filtered by the backend
 
   return (
     <div>
@@ -281,7 +309,7 @@ export default function Exams() {
             {f !== "All" && (
               <span style={{ opacity: 0.7 }}>
                 {" "}
-                ({exams.filter((e) => e.status === f).length})
+                ({counts[f] ?? 0})
               </span>
             )}
           </button>
@@ -289,7 +317,7 @@ export default function Exams() {
       </div>
 
       {loading && <LoadingSpinner message="Loading exams…" />}
-      {error && <ErrorMessage message={error} onRetry={fetchData} />}
+      {error && <ErrorMessage message={error} onRetry={fetchExams} />}
 
       {!loading &&
         !error &&

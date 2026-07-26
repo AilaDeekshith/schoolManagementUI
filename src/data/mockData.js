@@ -56,17 +56,40 @@ export const exams = [
   { id: "E004", name: "Final Exam",    class: "All", date: "2024-11-20", subject: "All Subjects", maxMarks: 100, status: "Scheduled" },
 ];
 
+// Sub-sections shown under the Configuration module in the sidebar.
+export const CONFIG_SECTIONS = [
+  { id: "profile",      label: "School Profile",    icon: "🏫" },
+  { id: "grades",       label: "Grades & Sections", icon: "📚" },
+  { id: "subjects",     label: "Subjects",          icon: "📖" },
+  { id: "feeStructure", label: "Fee Structure",     icon: "💰" },
+  { id: "templates",    label: "Templates",   icon: "🧾" },
+  { id: "calendar",     label: "Academic Calendar", icon: "📅" },
+  { id: "users",        label: "Users",             icon: "👤" },
+];
+
+// Sub-sections shown under the Exams module in the sidebar.
+export const EXAM_SECTIONS = [
+  { id: "exams",         label: "Exams",                icon: "📝" },
+  { id: "examTimetable", label: "Exam Timetable",       icon: "🗓" },
+  { id: "examMarks",     label: "Enter Marks",          icon: "✍️" },
+  { id: "examSeating",   label: "Seating Arrangement",  icon: "🪑" },
+];
+
+// Sub-sections shown under the Classes module in the sidebar.
+export const CLASS_SECTIONS = [
+  { id: "classes",    label: "Classes",    icon: "🏫" },
+  { id: "timetable",  label: "Timetable",  icon: "🗓" },
+  { id: "attendance", label: "Attendance", icon: "✅" },
+];
+
 export const MODULES = [
-  { id: "dashboard",     label: "Dashboar",     icon: "⊞" },
+  { id: "dashboard",     label: "Dashboard",     icon: "⊞" },
   { id: "students",      label: "Students",      icon: "🎓" },
   { id: "teachers",      label: "Teachers",      icon: "👩‍🏫" },
   { id: "admissions",    label: "Admissions",    icon: "📋" },
-  { id: "attendance",    label: "Attendance",    icon: "✅" },
-  { id: "timetable",     label: "Timetable",     icon: "🗓" },
   { id: "classes",       label: "Classes",       icon: "🏫" },
   { id: "fees",          label: "Fees",          icon: "💳" },
   { id: "exams",         label: "Exams",         icon: "📝" },
-  { id: "examSeating",   label: "Exam Seating",  icon: "🪑" },
   { id: "syllabus",      label: "Syllabus",      icon: "📚" },
   { id: "configuration", label: "Configuration", icon: "⚙️" },
 ];

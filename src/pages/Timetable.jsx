@@ -1,9 +1,10 @@
 // pages/Timetable.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme, subjectColors } from "../theme";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
-import { timetableAPI, classAPI, teacherAPI, periodAPI, configAPI } from "../api/apiService";
+import { timetableAPI, teacherAPI, periodAPI, configAPI } from "../api/apiService";
 
 // ─────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -118,17 +119,17 @@ function PeriodSetup({ className, existingPeriods, onSaved }) {
   const handleSave = async () => {
     for (let i=0; i<rows.length; i++) {
       const r = rows[i];
-      if (!r.label.trim())     { alert(`Row ${i+1}: Label is required`);      return; }
-      if (!r.startTime)        { alert(`Row ${i+1}: Start time is required`); return; }
-      if (!r.endTime)          { alert(`Row ${i+1}: End time is required`);   return; }
-      if (r.startTime >= r.endTime) { alert(`Row ${i+1}: End time must be after start time`); return; }
+      if (!r.label.trim())     { toast.error(`Row ${i+1}: Label is required`);      return; }
+      if (!r.startTime)        { toast.error(`Row ${i+1}: Start time is required`); return; }
+      if (!r.endTime)          { toast.error(`Row ${i+1}: End time is required`);   return; }
+      if (r.startTime >= r.endTime) { toast.error(`Row ${i+1}: End time must be after start time`); return; }
       // Duplicate start-time check
       const dupStart = rows.findIndex((o, j) => j !== i && o.startTime === r.startTime);
-      if (dupStart !== -1) { alert(`Rows ${i+1} and ${dupStart+1} have the same start time. Each period must have a unique start time.`); return; }
+      if (dupStart !== -1) { toast.error(`Rows ${i+1} and ${dupStart+1} have the same start time. Each period must have a unique start time.`); return; }
       // Overlap check — ensure this period doesn't overlap any other
       const start = r.startTime, end = r.endTime;
       const overlap = rows.findIndex((o, j) => j !== i && o.startTime && o.endTime && start < o.endTime && end > o.startTime);
-      if (overlap !== -1) { alert(`Period ${i+1} overlaps with period ${overlap+1}. Fix the times before saving.`); return; }
+      if (overlap !== -1) { toast.error(`Period ${i+1} overlaps with period ${overlap+1}. Fix the times before saving.`); return; }
     }
     setSaving(true);
     try {
@@ -142,7 +143,7 @@ function PeriodSetup({ className, existingPeriods, onSaved }) {
       const saved = await periodAPI.saveForClass(className, payload);
       onSaved(saved);
     } catch (err) {
-      alert("Failed to save periods: " + err.message);
+      toast.error("Failed to save periods: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -389,8 +390,8 @@ function CellEditor({ cell, period, teachers, subjects, className, onSave, onCle
                     overflow:"hidden", flexShrink:0,
                   }}>
                     {photoSrc
-                      ? <img src={photoSrc} alt={t.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                      : t.name[0].toUpperCase()
+                      ? <img src={photoSrc} alt={t?.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      : t?.name?.[0]?.toUpperCase()
                     }
                   </div>
                   <div style={{ flex:1 }}>
@@ -414,7 +415,7 @@ function CellEditor({ cell, period, teachers, subjects, className, onSave, onCle
           )}
           <button
             onClick={() => {
-              if (!subject) { alert("Please select a subject"); return; }
+              if (!subject) { toast.error("Please select a subject"); return; }
               onSave(cell.day, period.periodNumber, subject, teacherId || null);
               onClose();
             }}
@@ -680,12 +681,13 @@ export default function Timetable() {
     const init = async () => {
       setInitLoading(true);
       try {
-        const [classData, teacherData, subjectData] = await Promise.all([
-          classAPI.getAll(),
+        const [gradeData, teacherData, subjectData] = await Promise.all([
+          configAPI.getGrades().catch(() => []),
           teacherAPI.getAll(),
           configAPI.getSubjects().catch(() => []),
         ]);
-        const names = classData.map(c => c.className).sort();
+        // Class options come from the configured grades & sections.
+        const names = (gradeData || []).flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`)).sort();
         setClasses(names);
         setTeachers(teacherData.map(t => ({ id:t.id, name:t.name, subject:t.subject || "", photo:t.photoBase64 ?? null, assignedClasses:t.assignedClasses || "" })));
         const subjectNames = subjectData.length
@@ -750,7 +752,7 @@ export default function Timetable() {
             {[["setup","1 · Period Setup"],["assign","2 · Assign Subjects"]].map(([s, label]) => (
               <button
                 key={s}
-                onClick={() => { if (s === "assign" && periods.length === 0) { alert("Please save period structure first."); return; } setStep(s); }}
+                onClick={() => { if (s === "assign" && periods.length === 0) { toast.error("Please save period structure first."); return; } setStep(s); }}
                 style={{
                   padding:"7px 16px", fontSize:12, fontWeight:700, border:"none", cursor:"pointer",
                   background: step === s ? theme.accent : theme.surface,

@@ -1,5 +1,6 @@
 // pages/ClassroomLayout.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import { classAPI, classLayoutAPI, studentAPI } from "../api/apiService";
 
@@ -484,7 +485,7 @@ function Bench({ row, col, studentsPerBench, seats, onAssign, onUnassign, onStud
                 }}
                 title={assignment?.studentName}
               >
-                {assignment ? assignment.studentName.split(" ")[0] : "Empty"}
+                {assignment ? (assignment.studentName || "").split(" ")[0] : "Empty"}
               </div>
             </div>
           );
@@ -574,7 +575,7 @@ export default function ClassroomLayout({ classId, className, onBack, onStudentC
       setSeats([]);
       setEditingLayout(false);
     } catch (err) {
-      alert("Failed to save layout: " + err.message);
+      toast.error("Failed to save layout: " + err.message);
     }
   };
 
@@ -591,7 +592,7 @@ export default function ClassroomLayout({ classId, className, onBack, onStudentC
       ]);
       setAssignModal(null);
     } catch (err) {
-      alert("Failed to assign: " + err.message);
+      toast.error("Failed to assign: " + err.message);
     }
   };
 
@@ -602,7 +603,7 @@ export default function ClassroomLayout({ classId, className, onBack, onStudentC
         prev.filter((s) => !(s.rowNum === row && s.colNum === col && s.seatIndex === seatIndex))
       );
     } catch (err) {
-      alert("Failed to remove: " + err.message);
+      toast.error("Failed to remove: " + err.message);
     }
   };
 

@@ -1,5 +1,6 @@
 // pages/ExamMarks.jsx – Enter & view marks for one exam
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import { studentAPI, configAPI, examResultsAPI } from "../api/apiService";
 
@@ -70,7 +71,7 @@ function StatsBar({ entries, maxMarks }) {
 }
 
 // ── Results report table ───────────────────────────────────────
-function ResultsReport({ examId, subjects, exam }) {
+function ResultsReport({ examId, exam }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -158,7 +159,7 @@ function ResultsReport({ examId, subjects, exam }) {
 }
 
 // ── Main ExamMarks page ───────────────────────────────────────
-export default function ExamMarks({ exam, onClose }) {
+export default function ExamMarks({ exam, onClose, embedded = false }) {
   const [tab, setTab]             = useState("enter"); // "enter" | "report"
   const [subjects, setSubjects]   = useState([]);
   const [selSubject, setSelSubject] = useState("");
@@ -172,6 +173,7 @@ export default function ExamMarks({ exam, onClose }) {
 
   // Load subjects (from configAPI or use exam subject)
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (exam.subject && exam.subject !== "All Subjects") {
       setSubjects([exam.subject]);
       setSelSubject(exam.subject);
@@ -187,6 +189,7 @@ export default function ExamMarks({ exam, onClose }) {
           setSelSubject("General");
         });
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [exam.subject]);
 
   // Load class list if exam is "All"
@@ -207,6 +210,7 @@ export default function ExamMarks({ exam, onClose }) {
   // Load students when class is selected
   useEffect(() => {
     if (!selClass) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     studentAPI.getByClass(selClass)
       .then(data => setStudents(data || []))
@@ -229,7 +233,12 @@ export default function ExamMarks({ exam, onClose }) {
     }
   }, [exam.id, selSubject, selClass]);
 
-  useEffect(() => { loadExistingMarks(); setSaved(false); }, [loadExistingMarks]);
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    loadExistingMarks();
+    setSaved(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [loadExistingMarks]);
 
   const setField = (studentId, field, val) => {
     setEntries(prev => ({
@@ -240,7 +249,7 @@ export default function ExamMarks({ exam, onClose }) {
   };
 
   const handleSave = async () => {
-    if (!selSubject) { alert("Please select a subject"); return; }
+    if (!selSubject) { toast.error("Please select a subject"); return; }
     setSaving(true);
     try {
       const payload = {
@@ -257,7 +266,7 @@ export default function ExamMarks({ exam, onClose }) {
       await examResultsAPI.saveBulk(payload);
       setSaved(true);
     } catch (err) {
-      alert("Failed to save: " + err.message);
+      toast.error("Failed to save: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -270,17 +279,8 @@ export default function ExamMarks({ exam, onClose }) {
     grade:   calcGrade(entries[s.id]?.marks, exam.maxMarks),
   }));
 
-  return (
-    <div style={{
-      position: "fixed", inset: 0,
-      background: "#0f0e1acc",
-      backdropFilter: "blur(6px)",
-      zIndex: 3000,
-      overflowY: "auto",
-      padding: "20px 16px",
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+  const inner = (
+      <div style={{ maxWidth: 1000, margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>
 
         {/* ── Header card ── */}
         <div style={{
@@ -301,10 +301,12 @@ export default function ExamMarks({ exam, onClose }) {
               {exam.subject !== "All Subjects" && <span>📖 {exam.subject}</span>}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >×</button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", borderRadius: 10, width: 36, height: 36, fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >×</button>
+          )}
         </div>
 
         {/* ── Tab bar + class selector ── */}
@@ -460,10 +462,25 @@ export default function ExamMarks({ exam, onClose }) {
           )}
 
           {tab === "report" && (
-            <ResultsReport examId={exam.id} subjects={subjects} exam={exam} />
+            <ResultsReport examId={exam.id} exam={exam} />
           )}
         </div>
       </div>
+  );
+
+  if (embedded) return inner;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      background: "#0f0e1acc",
+      backdropFilter: "blur(6px)",
+      zIndex: 3000,
+      overflowY: "auto",
+      padding: "20px 16px",
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      {inner}
     </div>
   );
 }

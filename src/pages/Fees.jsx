@@ -1,5 +1,6 @@
 // pages/Fees.jsx
 import { useState, useEffect } from "react";
+import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
@@ -15,6 +16,20 @@ import { feesAPI, configAPI } from "../api/apiService";
 // backend enum → readable label
 const prettyEnum = (s) =>
   s ? s.split("_").map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ") : "";
+
+// School academic year for "now" (April–March), e.g. "2026-27"
+const currentAcademicYear = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  return now.getMonth() >= 3 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
+};
+
+const fedLabel = { fontSize: 11, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 5 };
+const fedInput = {
+  padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${theme.border}`,
+  background: theme.card, color: theme.text, fontSize: 13, outline: "none",
+  fontFamily: "'DM Sans', sans-serif", minWidth: 140,
+};
 
 // ── helpers ───────────────────────────────────────────────────
 const mapFeeStatus = (s) =>
@@ -54,14 +69,22 @@ export default function Fees() {
   const [templates, setTemplates] = useState([]); // available receipt templates
   const [profile, setProfile] = useState({}); // school profile for receipt header
   const [receipt, setReceipt] = useState(null); // payment data for receipt modal
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | PAID | PENDING | OVERDUE
+  const [classes, setClasses] = useState([]);              // class dropdown options
+  const [className, setClassName] = useState("");          // selected class
+  const [academicYears, setAcademicYears] = useState([]);  // academic-year dropdown options
+  const [academicYear, setAcademicYear] = useState("");    // selected academic year
+  const [search, setSearch] = useState("");                // student name (typed)
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // ── fetch ──────────────────────────────────────────────────
+  // ── fetch (all filtering happens on the backend) ───────────
   const fetchFees = async () => {
+    if (!className) return; // wait until the default class is known
     setLoading(true);
     setError(null);
     try {
       const [feeData, summaryData] = await Promise.all([
-        feesAPI.getAll(),
+        feesAPI.search({ className, academicYear, status: statusFilter, name: debouncedSearch }),
         feesAPI.getSummary(),
       ]);
       setFees(feeData.map(toRow));
@@ -76,13 +99,39 @@ export default function Fees() {
     }
   };
 
+  // Load filter options once. Only the default class is fetched initially —
+  // the full fee list is never loaded up front.
+  useEffect(() => {
+    (async () => {
+      const [grades, years, prof] = await Promise.all([
+        configAPI.getGrades().catch(() => []),
+        feesAPI.getAcademicYears().catch(() => []),
+        configAPI.getProfile().catch(() => ({})),
+      ]);
+      // Class options come from the configured grades & sections.
+      const classNames = (grades || []).flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`));
+      const curAY = (prof?.academicYear || "").trim() || currentAcademicYear();
+      setClasses(classNames);
+      setAcademicYears(Array.from(new Set([curAY, ...(years || [])])).filter(Boolean));
+      setAcademicYear(curAY);
+      setProfile(prof || {});
+      if (classNames.length) setClassName(classNames[0]);
+    })();
+    configAPI.getReceiptTemplates().then(setTemplates).catch(() => {});
+  }, []);
+
+  // Debounce the typed name so we don't hit the backend on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Re-fetch whenever any filter changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFees();
-    // Load receipt templates + school profile for the printable receipt.
-    configAPI.getReceiptTemplates().then(setTemplates).catch(() => {});
-    configAPI.getProfile().then(setProfile).catch(() => {});
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [className, academicYear, statusFilter, debouncedSearch]);
 
   // ── collect payment ────────────────────────────────────────
   const handleCollect = async ({ feeId, amount, method, txnId, date }) => {
@@ -110,7 +159,7 @@ export default function Fees() {
       });
       fetchFees();
     } catch (err) {
-      alert("Payment failed: " + err.message);
+      toast.error("Payment failed: " + err.message);
     }
   };
 
@@ -218,10 +267,83 @@ export default function Fees() {
         />
       </div>
 
+      {/* Class + Academic Year + name search */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div>
+          <div style={fedLabel}>Class</div>
+          <select value={className} onChange={(e) => setClassName(e.target.value)} style={fedInput}>
+            {classes.length === 0 && <option value="">No classes</option>}
+            {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={fedLabel}>Academic Year</div>
+          <select value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} style={fedInput}>
+            {academicYears.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div style={{ marginLeft: "auto", minWidth: 260 }}>
+          <div style={fedLabel}>Search student</div>
+          <div style={{ position: "relative" }}>
+            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, pointerEvents: "none", lineHeight: 1 }}>🔍</span>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Type a student name…"
+              style={{ ...fedInput, width: "100%", padding: "9px 32px 9px 34px", boxSizing: "border-box" }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} title="Clear" style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", cursor: "pointer", color: theme.muted,
+                fontSize: 16, lineHeight: 1, padding: 0, display: "flex", alignItems: "center",
+              }}>×</button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Status filter */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        {[
+          ["ALL", "All", theme.accent],
+          ["PAID", "Paid", theme.green],
+          ["PENDING", "Pending", theme.orange || "#F59E0B"],
+          ["OVERDUE", "Overdue", theme.red],
+        ].map(([value, label, color]) => {
+          const active = statusFilter === value;
+          return (
+            <button
+              key={value}
+              onClick={() => setStatusFilter(value)}
+              style={{
+                padding: "8px 18px", borderRadius: 20, cursor: "pointer",
+                fontSize: 13, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
+                border: `1.5px solid ${active ? color : theme.border}`,
+                background: active ? color + "18" : theme.card,
+                color: active ? color : theme.muted,
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       <CardWrapper>
         {loading && <LoadingSpinner message="Loading fees…" />}
         {error && <ErrorMessage message={error} onRetry={fetchFees} />}
-        {!loading && !error && <DataTable columns={columns} data={fees} />}
+        {!loading && !error && (
+          fees.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: theme.muted }}>
+              {debouncedSearch
+                ? `No students match “${debouncedSearch}” in ${className || "this class"}.`
+                : `No fee records found for ${className || "this class"}${academicYear ? ` (${academicYear})` : ""}.`}
+            </div>
+          ) : (
+            <DataTable columns={columns} data={fees} />
+          )
+        )}
       </CardWrapper>
 
       {/* Collect payment modal */}

@@ -1,7 +1,16 @@
 // src/api/apiService.js
+import { canWrite, moduleForPath } from "../access";
+
 const BASE_URL = import.meta.env.VITE_BACK_END_URL;
 
 async function request(method, path, body = null) {
+  // Enforce read-only access: block writes to modules the user can't write.
+  if (method !== "GET" && method !== "HEAD") {
+    const mod = moduleForPath(path);
+    if (mod && !canWrite(mod)) {
+      throw new Error("You have read-only access to this section — changes are not allowed.");
+    }
+  }
   const token = localStorage.getItem("token");
   const options = {
     method,
@@ -12,11 +21,13 @@ async function request(method, path, body = null) {
   };
   if (body) options.body = JSON.stringify(body);
   const res = await fetch(`${BASE_URL}${path}`, options);
-  if (res.status === 401) {
+  // A bad/expired token is rejected with 401 (or 403 by Spring's default) — in
+  // both cases clear the session and send the user back to the login page.
+  if (res.status === 401 || res.status === 403) {
     localStorage.removeItem("token");
     localStorage.removeItem("authUser");
     window.dispatchEvent(new Event("auth:logout"));
-    throw new Error("Session expired");
+    throw new Error("Session expired — please sign in again.");
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
@@ -114,6 +125,16 @@ export const feesAPI = {
   getByStatus:    (s)                         => request("GET",    `/fees/status/${s}`),
   getByYear:      (year)                      => request("GET",    `/fees/year/${year}`),
   getSummary:     ()                          => request("GET",    "/fees/summary"),
+  getAcademicYears: ()                        => request("GET",    "/fees/academic-years"),
+  search: ({ className, academicYear, status, name } = {}) => {
+    const p = new URLSearchParams();
+    if (className)                     p.append("className", className);
+    if (academicYear)                 p.append("academicYear", academicYear);
+    if (status && status !== "ALL")   p.append("status", status);
+    if (name && name.trim())          p.append("name", name.trim());
+    const qs = p.toString();
+    return request("GET", `/fees/search${qs ? `?${qs}` : ""}`);
+  },
 };
 
 export const userMgmtAPI = {
@@ -124,6 +145,9 @@ export const userMgmtAPI = {
   updateStatus: (id, status) => request("PATCH",  `/users/${id}/status?status=${status}`),
   delete:       (id)         => request("DELETE", `/users/${id}`),
   search:       (name)       => request("GET",    `/users/search?name=${encodeURIComponent(name)}`),
+  // Per-user module access (RBAC)
+  getPermissions: (id)       => request("GET",    `/users/${id}/permissions`),
+  setPermissions: (id, data) => request("PUT",    `/users/${id}/permissions`, data),
 };
 
 export const configAPI = {
@@ -240,6 +264,13 @@ export const examAPI = {
   getUpcoming:        ()           => request("GET",    "/exams/upcoming"),
   getUpcomingByClass: (cls)        => request("GET",    `/exams/upcoming/class/${cls}`),
   getByDateRange:     (from, to)   => request("GET",    `/exams/range?from=${from}&to=${to}`),
+};
+
+export const examScheduleAPI = {
+  getByExam: (examId)     => request("GET",    `/exams/${examId}/schedule`),
+  create:    (examId, d)  => request("POST",   `/exams/${examId}/schedule`, d),
+  update:    (id, d)      => request("PUT",    `/exam-schedule/${id}`, d),
+  delete:    (id)         => request("DELETE", `/exam-schedule/${id}`),
 };
 
 export const syllabusAPI = {
