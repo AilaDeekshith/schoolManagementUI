@@ -93,3 +93,4 @@ export const MODULES = [
   { id: "syllabus",      label: "Syllabus",      icon: "📚" },
   { id: "configuration", label: "Configuration", icon: "⚙️" },
 ];
+
