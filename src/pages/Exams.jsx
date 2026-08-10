@@ -7,7 +7,7 @@ import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddExamForm from "../components/forms/AddExamForm";
-import { examAPI, teacherAPI, configAPI } from "../api/apiService";
+import { examAPI, configAPI } from "../api/apiService";
 import ExamMarks from "./ExamMarks";
 
 // ── helpers ───────────────────────────────────────────────────
@@ -30,8 +30,24 @@ const CARD_STATUS_OPTIONS = [
   ["Cancelled", "CANCELLED"],
 ];
 
+// Accent colour per status — drives the top stripe and hover glow.
+const STATUS_COLOR = {
+  SCHEDULED: theme.blue,
+  UPCOMING:  theme.orange,
+  COMPLETED: theme.green,
+  CANCELLED: theme.red,
+};
+
 function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
   const [hovered, setHovered] = useState(false);
+  const accent = STATUS_COLOR[exam.status] || theme.accent;
+
+  const details = [
+    ["📅", "Date", exam.date],
+    ["🏫", "Class", exam.class],
+    ["📊", "Max Marks", exam.maxMarks],
+    ["⏱", "Duration", exam.duration],
+  ].filter(([, , v]) => v);
 
   return (
     <div
@@ -39,111 +55,102 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: theme.card,
-        border: `1px solid ${hovered ? theme.accent : theme.border}`,
-        borderRadius: 14,
-        padding: 22,
-        transition: "border-color 0.2s",
+        border: `1px solid ${hovered ? accent + "88" : theme.border}`,
+        borderRadius: 16,
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        gap: 0,
+        boxShadow: hovered
+          ? `0 12px 28px ${accent}26`
+          : "0 2px 10px rgba(16,24,64,0.05)",
+        transform: hovered ? "translateY(-3px)" : "none",
+        transition: "all 0.2s ease",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 10,
-        }}
-      >
-        <span
-          style={{ fontFamily: "monospace", fontSize: 11, color: theme.muted }}
-        >
-          #{exam.id}
-        </span>
-        <Badge status={exam.status} />
-      </div>
+      {/* Status stripe */}
+      <div style={{ height: 4, background: accent }} />
 
-      {/* Name & subject */}
-      <div
-        style={{
-          fontSize: 17,
-          fontWeight: 800,
-          color: theme.text,
-          marginBottom: 3,
-        }}
-      >
-        {exam.name}
-      </div>
-      <div
-        style={{
-          color: theme.accent,
-          fontWeight: 600,
-          fontSize: 13,
-          marginBottom: 14,
-        }}
-      >
-        {exam.subject}
-      </div>
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", flex: 1 }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: theme.muted, background: theme.bg, borderRadius: 6, padding: "2px 8px" }}>
+            #{exam.id}
+          </span>
+          <Badge status={exam.status} />
+        </div>
 
-      {/* Details */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          fontSize: 13,
-        }}
-      >
-        {[
-          ["📅", "Date", exam.date],
-          ["🏫", "Class", exam.class],
-          ["📊", "Max Marks", exam.maxMarks],
-          ["⏱", "Duration", exam.duration],
-          ["👩‍🏫", "Examiner", exam.examiner],
-        ]
-          .filter(([, , v]) => v)
-          .map(([icon, label, val]) => (
-            <div key={label} style={{ display: "flex", gap: 8 }}>
-              <span>{icon}</span>
-              <span style={{ color: theme.muted }}>{label}:</span>
-              <span style={{ color: theme.text, fontWeight: 600 }}>
+        {/* Name & subject */}
+        <div style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.25 }}>
+          {exam.name}
+        </div>
+        <div style={{ color: theme.accent, fontWeight: 700, fontSize: 12.5, marginTop: 3, marginBottom: 16 }}>
+          {exam.subject}
+        </div>
+
+        {/* Details grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 12,
+          background: theme.bg,
+          borderRadius: 12,
+          padding: "14px 16px",
+          marginBottom: 16,
+        }}>
+          {details.map(([icon, label, val]) => (
+            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <span style={{ fontSize: 10.5, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                {icon} {label}
+              </span>
+              <span style={{ fontSize: 13.5, color: theme.text, fontWeight: 700 }}>
                 {String(val)}
               </span>
             </div>
           ))}
-      </div>
+        </div>
 
-      {/* Status control */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
-        <span style={{ fontSize: 12, color: theme.muted, fontWeight: 600 }}>Status</span>
-        <select
-          value={exam.status}
-          onChange={(e) => {
-            const enumVal = CARD_STATUS_OPTIONS.find(([label]) => label === e.target.value)?.[1];
-            if (enumVal) onStatusChange(exam.id, enumVal);
-          }}
-          title="Change exam status"
-          style={{ flex: 1, background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "7px 8px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, outline: "none", fontFamily: "'DM Sans', sans-serif" }}
-        >
-          {CARD_STATUS_OPTIONS.map(([label]) => <option key={label} value={label}>{label}</option>)}
-        </select>
-      </div>
+        {/* Pushes the controls to the bottom so cards align */}
+        <div style={{ flex: 1 }} />
 
-      {/* Actions */}
-      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+        {/* Status control */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", fontSize: 10.5, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+            Status
+          </label>
+          <select
+            value={exam.status}
+            onChange={(e) => {
+              const enumVal = CARD_STATUS_OPTIONS.find(([label]) => label === e.target.value)?.[1];
+              if (enumVal) onStatusChange(exam.id, enumVal);
+            }}
+            title="Change exam status"
+            style={{ width: "100%", background: theme.card, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "9px 10px", cursor: "pointer", fontSize: 12.5, fontWeight: 700, outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+          >
+            {CARD_STATUS_OPTIONS.map(([label]) => <option key={label} value={label}>{label}</option>)}
+          </select>
+        </div>
+
+        {/* Actions */}
         <button
           onClick={() => onMarks(exam)}
-          style={{ flex: 2, background: "#f0f4ff", color: theme.accent, border: `1px solid ${theme.accent}44`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
-        >✏️ Enter Marks</button>
-        <button
-          onClick={() => onEdit(exam)}
-          style={{ flex: 1, background: theme.blue + "15", color: theme.blue, border: `1px solid ${theme.blue}33`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
-        >Edit</button>
-        <button
-          onClick={() => onDelete(exam.id)}
-          style={{ flex: 1, background: theme.red + "12", color: theme.red, border: `1px solid ${theme.red}22`, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
-        >Delete</button>
+          style={{ width: "100%", background: theme.accent, color: "#fff", border: "none", borderRadius: 9, padding: "10px 0", cursor: "pointer", fontSize: 13, fontWeight: 700, boxShadow: `0 4px 12px ${theme.accent}33`, marginBottom: 8 }}
+        >
+          ✏️ Enter Marks
+        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => onEdit(exam)}
+            style={{ flex: 1, background: theme.blue + "12", color: theme.blue, border: `1px solid ${theme.blue}33`, borderRadius: 9, padding: "9px 0", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(exam.id)}
+            style={{ flex: 1, background: theme.red + "10", color: theme.red, border: `1px solid ${theme.red}2A`, borderRadius: 9, padding: "9px 0", cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -152,7 +159,6 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
 // ── Page ──────────────────────────────────────────────────────
 export default function Exams() {
   const [exams, setExams] = useState([]);
-  const [teachers, setTeachers] = useState([]);
   const [classOptions, setClassOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -167,7 +173,7 @@ export default function Exams() {
   const toExamRow = (e) => ({
     id: e.id, name: e.name, subject: e.subject,
     class: e.className || "All", date: e.examDate, maxMarks: e.maxMarks,
-    duration: e.duration, examiner: e.examinerName,
+    duration: e.duration,
     rawStatus: e.status, status: statusLabel(e.status),
   });
 
@@ -195,12 +201,8 @@ export default function Exams() {
   };
 
   const loadMeta = async () => {
-    const [teacherData, gradeData] = await Promise.all([
-      teacherAPI.getAll().catch(() => []),
-      configAPI.getGrades().catch(() => []),
-    ]);
+    const gradeData = await configAPI.getGrades().catch(() => []);
     setClassOptions(gradeData.flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`)));
-    setTeachers(teacherData.map((t) => ({ id: t.id, name: t.name })));
   };
 
   const refresh = () => { fetchExams(); refreshCounts(); };
@@ -229,7 +231,6 @@ export default function Exams() {
     duration: formData.duration,
     instructions: formData.instructions,
     status,
-    examinerId: formData.examiner ? teachers.find((t) => t.name === formData.examiner)?.id : null,
   });
 
   // ── Add exam ────────────────────────────────────────────────
@@ -297,11 +298,12 @@ export default function Exams() {
               background: filter === f ? theme.accent : theme.card,
               color: filter === f ? "#fff" : theme.muted,
               border: `1px solid ${filter === f ? theme.accent : theme.border}`,
-              borderRadius: 8,
-              padding: "6px 14px",
-              fontSize: 12,
+              borderRadius: 999,
+              padding: "7px 16px",
+              fontSize: 12.5,
               cursor: "pointer",
-              fontWeight: 600,
+              fontWeight: 700,
+              boxShadow: filter === f ? `0 4px 12px ${theme.accent}33` : "none",
               transition: "all 0.15s",
             }}
           >
@@ -327,8 +329,8 @@ export default function Exams() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 16,
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: 18,
             }}
           >
             {filtered.map((e) => (
@@ -345,10 +347,10 @@ export default function Exams() {
         ))}
 
       {addOpen && (
-        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} teachers={teachers} classOptions={classOptions} />
+        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} />
       )}
       {editTarget && (
-        <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} teachers={teachers} classOptions={classOptions} />
+        <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} />
       )}
       {marksExam && (
         <ExamMarks exam={marksExam} onClose={() => setMarksExam(null)} />

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { theme } from "../theme";
 import { examAPI } from "../api/apiService";
+import StickyHeader from "../components/StickyHeader";
 import ExamMarks from "./ExamMarks";
 
 const fmtDate = (d) => {
@@ -36,12 +37,12 @@ export default function ExamMarksSection() {
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
+      <StickyHeader>
         <div style={{ fontSize: 22, fontWeight: 900, color: theme.text }}>Enter Exam Marks</div>
         <div style={{ fontSize: 13, color: theme.muted, marginTop: 2 }}>
           Select an exam, then record each student's marks by subject and class.
         </div>
-      </div>
+      </StickyHeader>
 
       {/* Exam selector */}
       <div style={{ background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 14, padding: "16px 20px", marginBottom: 22, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>

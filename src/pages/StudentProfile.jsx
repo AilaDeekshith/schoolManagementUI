@@ -125,7 +125,7 @@ export default function StudentProfile({ student, onBack, backLabel }) {
     : null;
 
   return (
-    <div>
+    <div style={{ paddingTop: 24 }}>
       {/* ── Back button ── */}
       <button
         onClick={onBack}

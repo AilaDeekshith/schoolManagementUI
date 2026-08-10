@@ -205,7 +205,7 @@ export default function App() {
             {renderPage()}
           </div>
         ) : (
-          <div style={{ flex: 1, overflowY: "auto", padding: 28 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px 28px" }}>
             {renderPage()}
           </div>
         )}

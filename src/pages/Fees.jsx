@@ -163,6 +163,36 @@ export default function Fees() {
     }
   };
 
+  const [reminding, setReminding] = useState(null); // fee id currently being reminded
+  const [remindingAll, setRemindingAll] = useState(false);
+
+  const handleRemind = async (row) => {
+    setReminding(row.id);
+    try {
+      await feesAPI.remind(row.id);
+      toast.success(`Reminder emailed for ${row.name}`);
+    } catch (err) {
+      toast.error("Failed to send reminder: " + err.message);
+    } finally {
+      setReminding(null);
+    }
+  };
+
+  const handleRemindAll = async () => {
+    setRemindingAll(true);
+    try {
+      const res = await feesAPI.remindAll(academicYear);
+      const sent = res?.sent ?? 0;
+      toast.success(sent > 0
+        ? `${sent} reminder${sent === 1 ? "" : "s"} emailed`
+        : "No outstanding fees with an email on file");
+    } catch (err) {
+      toast.error("Failed to send reminders: " + err.message);
+    } finally {
+      setRemindingAll(false);
+    }
+  };
+
   // ── derived stats ──────────────────────────────────────────
   const paidCount = fees.filter((f) => f.status === "Paid").length;
   const overdueCount = fees.filter((f) => f.status === "Overdue").length;
@@ -207,21 +237,41 @@ export default function Fees() {
       label: "Action",
       render: (_, row) =>
         row.due > 0 ? (
-          <button
-            onClick={() => setSelected(row)}
-            style={{
-              background: theme.accent + "18",
-              color: theme.accent,
-              border: `1px solid ${theme.accent}33`,
-              borderRadius: 6,
-              padding: "4px 12px",
-              cursor: "pointer",
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            Collect
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => setSelected(row)}
+              style={{
+                background: theme.accent + "18",
+                color: theme.accent,
+                border: `1px solid ${theme.accent}33`,
+                borderRadius: 6,
+                padding: "4px 12px",
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              Collect
+            </button>
+            <button
+              onClick={() => handleRemind(row)}
+              disabled={reminding === row.id}
+              title="Email a payment reminder"
+              style={{
+                background: theme.orange + "18",
+                color: theme.orange,
+                border: `1px solid ${theme.orange}33`,
+                borderRadius: 6,
+                padding: "4px 12px",
+                cursor: reminding === row.id ? "default" : "pointer",
+                fontSize: 11,
+                fontWeight: 700,
+                opacity: reminding === row.id ? 0.6 : 1,
+              }}
+            >
+              {reminding === row.id ? "…" : "Remind"}
+            </button>
+          </div>
         ) : (
           <span style={{ color: theme.muted, fontSize: 12 }}>—</span>
         ),
@@ -230,7 +280,11 @@ export default function Fees() {
 
   return (
     <div>
-      <PageHeader title="Fee Management" />
+      <PageHeader
+        title="Fee Management"
+        actionLabel={remindingAll ? "Sending…" : "Send Reminders"}
+        onAction={remindingAll ? undefined : handleRemindAll}
+      />
 
       {/* Stat cards — values come from live API */}
       <div

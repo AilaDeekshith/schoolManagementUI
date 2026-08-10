@@ -663,7 +663,7 @@ export default function Syllabus() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0, paddingTop: 24, boxSizing: "border-box" }}>
 
       {/* ── Page header ──────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>

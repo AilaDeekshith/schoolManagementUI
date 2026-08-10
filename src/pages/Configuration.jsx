@@ -1,10 +1,11 @@
 // pages/Configuration.jsx
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
-import { configAPI, userMgmtAPI } from "../api/apiService";
+import { configAPI, userMgmtAPI, teacherAPI, classAPI } from "../api/apiService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import StickyHeader from "../components/StickyHeader";
 import { ReceiptSheet } from "../components/PaymentReceipt";
 import { MODULES } from "../data/mockData";
 
@@ -217,167 +218,6 @@ function ProfileTab({ onProfileSaved }) {
           {saving ? "Saving…" : saved ? "✓ Saved!" : "Save Profile"}
         </Btn>
       </form>
-
-      {/* ── Dashboard Hero Carousel ─────────────────────────────── */}
-      <DashboardSlidesManager />
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
-// Dashboard hero carousel — manage multiple image + tagline slides
-// ══════════════════════════════════════════════════════════════
-const SLIDE_DRAFT = { id: null, imageBase64: "", tagline: "" };
-
-function DashboardSlideCard({ slide, index, onSaved, onRemoved }) {
-  const [imageBase64, setImageBase64] = useState(slide.imageBase64 || "");
-  const [tagline, setTagline]         = useState(slide.tagline || "");
-  const [busy, setBusy]               = useState(false);
-  const fileRef = useRef(null);
-
-  const dirty = imageBase64 !== (slide.imageBase64 || "") || tagline !== (slide.tagline || "");
-
-  const handleImage = e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
-    const reader = new FileReader();
-    reader.onload = ev => setImageBase64(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-
-  const handleSave = async () => {
-    if (!imageBase64 && !tagline.trim()) { toast.error("Add an image or a tagline first"); return; }
-    setBusy(true);
-    try {
-      const payload = { imageBase64, tagline: tagline.trim(), sortOrder: slide.sortOrder ?? index };
-      const saved = slide.id
-        ? await configAPI.updateDashboardSlide(slide.id, payload)
-        : await configAPI.createDashboardSlide(payload);
-      onSaved(saved);
-    } catch (err) {
-      toast.error("Failed to save slide: " + err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleRemove = async () => {
-    if (slide.id && !confirm("Remove this slide?")) return;
-    setBusy(true);
-    try {
-      if (slide.id) await configAPI.deleteDashboardSlide(slide.id);
-      onRemoved(slide);
-    } catch (err) {
-      toast.error("Failed to remove slide: " + err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", gap: 16, padding: 14, border: `1px solid ${theme.border}`, borderRadius: 12, background: theme.bg }}>
-      {/* Image */}
-      <div style={{
-        width: 180, height: 96, borderRadius: 10, flexShrink: 0,
-        border: `2px dashed ${imageBase64 ? theme.accent : theme.border}`,
-        background: imageBase64 ? "transparent" : "#f8fafc",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        overflow: "hidden", cursor: "pointer",
-      }} onClick={() => fileRef.current?.click()}>
-        {imageBase64
-          ? <img src={imageBase64} alt="slide" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 24 }}>🖼️</div>
-              <div style={{ fontSize: 10, color: theme.muted, marginTop: 2 }}>Add image</div>
-            </div>}
-      </div>
-
-      {/* Tagline + actions */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: theme.muted }}>SLIDE {index + 1}</div>
-        <input
-          type="text"
-          value={tagline}
-          onChange={e => setTagline(e.target.value)}
-          placeholder="Tagline — e.g. Empowering minds, shaping futures"
-          style={inp()}
-        />
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImage} />
-          <Btn small variant="blue" onClick={() => fileRef.current?.click()}>
-            {imageBase64 ? "Change Image" : "Upload Image"}
-          </Btn>
-          {imageBase64 && (
-            <Btn small variant="ghost" onClick={() => { setImageBase64(""); if (fileRef.current) fileRef.current.value = ""; }}>
-              Clear Image
-            </Btn>
-          )}
-          <div style={{ flex: 1 }} />
-          <Btn small variant="success" onClick={handleSave} style={{ opacity: busy || (slide.id && !dirty) ? 0.55 : 1 }}>
-            {busy ? "…" : slide.id ? (dirty ? "Save" : "✓ Saved") : "Add"}
-          </Btn>
-          <Btn small variant="danger" onClick={handleRemove}>Remove</Btn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DashboardSlidesManager() {
-  const [slides, setSlides] = useState([]);
-  const [drafts, setDrafts] = useState([]); // unsaved new slides (no id)
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(() => {
-    configAPI.getDashboardSlides()
-      .then(data => setSlides(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const addDraft = () => setDrafts(d => [...d, { ...SLIDE_DRAFT, key: Date.now() }]);
-
-  const handleSaved = () => { setDrafts([]); load(); };
-
-  return (
-    <div style={{ marginTop: 28, padding: "18px 20px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: theme.text, marginBottom: 4 }}>Dashboard Hero Carousel</div>
-          <div style={{ fontSize: 12, color: theme.muted }}>
-            Add as many image + tagline slides as you like — the dashboard rotates through them automatically.
-          </div>
-        </div>
-        <Btn small onClick={addDraft}>+ Add Slide</Btn>
-      </div>
-
-      {loading ? (
-        <div style={{ color: theme.muted, fontSize: 13, padding: 12 }}>Loading slides…</div>
-      ) : slides.length === 0 && drafts.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "28px 0", color: theme.muted }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🖼️</div>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>No slides yet</div>
-          <div style={{ fontSize: 12, marginTop: 3 }}>Add a slide to show a rotating banner on the dashboard.</div>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {slides.map((s, i) => (
-            <DashboardSlideCard key={s.id} slide={s} index={i} onSaved={handleSaved} onRemoved={handleSaved} />
-          ))}
-          {drafts.map((d, i) => (
-            <DashboardSlideCard
-              key={d.key}
-              slide={d}
-              index={slides.length + i}
-              onSaved={handleSaved}
-              onRemoved={() => setDrafts(prev => prev.filter(x => x.key !== d.key))}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -391,6 +231,8 @@ function GradesTab() {
   const [loading, setLoading]       = useState(true);
   const [newGrade, setNewGrade]     = useState("");
   const [newSection, setNewSection] = useState("");
+  const [teachers, setTeachers]     = useState([]);
+  const [rooms, setRooms]           = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -401,9 +243,16 @@ function GradesTab() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect 
-    load(); 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+    teacherAPI.getAll().then(d => setTeachers((d || []).map(t => ({ id: t.id, name: t.name })))).catch(() => {});
+    classAPI.getAll().then(d => setRooms((d || []).map(c => ({ id: c.id, roomNumber: c.roomNumber, className: c.className })))).catch(() => {});
   }, [load]);
+
+  const assignSection = async (sid, patch) => {
+    try { await configAPI.updateSection(sid, patch); load(); }
+    catch (e) { toast.error("Failed to update section: " + e.message); }
+  };
 
   const addGrade = async () => {
     if (!newGrade.trim()) return;
@@ -470,12 +319,37 @@ function GradesTab() {
             {(!selectedGrade.sections || selectedGrade.sections.length === 0) ? (
               <Empty message="No sections yet — add one above" />
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                 {selectedGrade.sections.map(s => (
-                  <div key={s.id} style={{ background: theme.green + "12", border: `2px solid ${theme.green}44`, borderRadius: 14, padding: "16px 22px", textAlign: "center", minWidth: 100, position: "relative" }}>
-                    <div style={{ fontSize: 30, fontWeight: 900, color: theme.green }}>{s.letter}</div>
-                    <div style={{ fontSize: 11, color: theme.muted, marginTop: 3 }}>{selectedGrade.name} — {s.letter}</div>
-                    <button onClick={() => delSection(s.id)} style={{ position: "absolute", top: 6, right: 8, background: "none", border: "none", color: theme.red, cursor: "pointer", fontSize: 15 }}>×</button>
+                  <div key={s.id} style={{ background: theme.card, border: `1px solid ${theme.border}`, borderLeft: `4px solid ${theme.green}`, borderRadius: 12, padding: "14px 16px", width: 250, position: "relative" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: theme.green + "15", color: theme.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900 }}>{s.letter}</div>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 800, color: theme.text }}>{selectedGrade.name} — {s.letter}</div>
+                        <div style={{ fontSize: 11, color: theme.muted }}>Section</div>
+                      </div>
+                    </div>
+                    <button onClick={() => delSection(s.id)} title="Delete section" style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: theme.red, cursor: "pointer", fontSize: 16 }}>×</button>
+
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4, marginBottom: 4 }}>Class Teacher</div>
+                    <select
+                      value={s.classTeacherId ?? ""}
+                      onChange={e => assignSection(s.id, { classTeacherId: e.target.value ? Number(e.target.value) : null, roomId: s.roomId ?? null })}
+                      style={inp({ marginBottom: 10, fontSize: 13 })}
+                    >
+                      <option value="">— Unassigned —</option>
+                      {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4, marginBottom: 4 }}>Room</div>
+                    <select
+                      value={s.roomId ?? ""}
+                      onChange={e => assignSection(s.id, { classTeacherId: s.classTeacherId ?? null, roomId: e.target.value ? Number(e.target.value) : null })}
+                      style={inp({ fontSize: 13 })}
+                    >
+                      <option value="">— Unassigned —</option>
+                      {rooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber || r.className}</option>)}
+                    </select>
                   </div>
                 ))}
               </div>
@@ -1362,15 +1236,17 @@ export default function Configuration({ section = "profile", onProfileSaved }) {
   return (
     <div>
       {/* Section heading */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 11, background: theme.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-          {meta.icon}
+      <StickyHeader>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 11, background: theme.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+            {meta.icon}
+          </div>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: theme.text }}>{meta.label}</div>
+            <div style={{ fontSize: 12, color: theme.muted }}>Configuration · School-wide settings</div>
+          </div>
         </div>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: theme.text }}>{meta.label}</div>
-          <div style={{ fontSize: 12, color: theme.muted }}>Configuration · School-wide settings</div>
-        </div>
-      </div>
+      </StickyHeader>
 
       {content[active]}
     </div>

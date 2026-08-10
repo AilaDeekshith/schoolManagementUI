@@ -4,9 +4,10 @@ import { toast } from "../toast";
 import { theme } from "../theme";
 import StatCard from "../components/StatCard";
 import LoadingSpinner from "../components/LoadingSpinner";
+import StickyHeader from "../components/StickyHeader";
 import {
   studentAPI, teacherAPI, classAPI, admissionAPI,
-  examAPI, attendanceAPI, configAPI, noticesAPI,
+  examAPI, attendanceAPI, noticesAPI,
 } from "../api/apiService";
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -63,24 +64,25 @@ const daysAway = dateStr => {
 };
 
 // ── Shared card shell ────────────────────────────────────────────
-function PanelCard({ headerGrad, headerBorder, icon, iconBg, title, subtitle, corner, children }) {
+// A single, uniform brand-violet header is used across every panel.
+function PanelCard({ icon, title, subtitle, corner, children }) {
   return (
     <div style={{
       background: "#fff", borderRadius: 20,
       border: `1px solid ${theme.border}`, overflow: "hidden",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+      boxShadow: "0 4px 24px rgba(108,99,255,0.08)",
       display: "flex", flexDirection: "column",
     }}>
-      {/* coloured header strip */}
+      {/* uniform header strip */}
       <div style={{
-        background: headerGrad, borderBottom: `1px solid ${headerBorder}`,
+        background: theme.accent + "0D", borderBottom: `1px solid ${theme.border}`,
         padding: "18px 22px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             width: 42, height: 42, borderRadius: 12,
-            background: iconBg, boxShadow: `0 4px 12px ${iconBg}88`,
+            background: theme.accent, boxShadow: `0 4px 12px ${theme.accent}55`,
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 20, flexShrink: 0,
           }}>{icon}</div>
@@ -126,9 +128,7 @@ function AttendanceCard({ attendance }) {
 
   return (
     <PanelCard
-      headerGrad="linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%)"
-      headerBorder="#A7F3D0"
-      icon="📊" iconBg="#10B981"
+      icon="📊"
       title="Today's Attendance"
       subtitle={new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}
       corner={
@@ -222,14 +222,12 @@ function AttendanceCard({ attendance }) {
 function BirthdayCard({ birthdays }) {
   return (
     <PanelCard
-      headerGrad="linear-gradient(135deg,#FDF2F8 0%,#FCE7F3 100%)"
-      headerBorder="#F9A8D4"
-      icon="🎂" iconBg="#EC4899"
+      icon="🎂"
       title="Birthdays Today"
       subtitle={birthdays.length ? `${birthdays.length} student${birthdays.length > 1 ? "s" : ""} celebrating` : "No celebrations today"}
       corner={
         birthdays.length > 0 ? (
-          <span style={{ background: "linear-gradient(135deg,#EC4899,#A855F7)", color: "#fff", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
+          <span style={{ background: theme.accent, color: "#fff", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
             🎉 {birthdays.length}
           </span>
         ) : null
@@ -311,14 +309,12 @@ function AdmissionsCard({ admissions }) {
 
   return (
     <PanelCard
-      headerGrad="linear-gradient(135deg,#EEF2FF 0%,#E0E7FF 100%)"
-      headerBorder="#C7D2FE"
-      icon="📋" iconBg="#6C63FF"
+      icon="📋"
       title="Recent Admissions"
       subtitle="Latest 5 applications"
       corner={
         admissions.length > 0 ? (
-          <span style={{ background: "#EDE9FE", color: "#6C63FF", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
+          <span style={{ background: theme.accent + "18", color: theme.accent, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
             {admissions.length} entries
           </span>
         ) : null
@@ -389,14 +385,12 @@ function AdmissionsCard({ admissions }) {
 function ExamsCard({ exams }) {
   return (
     <PanelCard
-      headerGrad="linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 100%)"
-      headerBorder="#C4B5FD"
-      icon="📝" iconBg="#A855F7"
+      icon="📝"
       title="Upcoming Exams"
       subtitle="Next 5 scheduled"
       corner={
         exams.length > 0 ? (
-          <span style={{ background: "#EDE9FE", color: "#7C3AED", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
+          <span style={{ background: theme.accent + "18", color: theme.accent, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
             {exams.length} exams
           </span>
         ) : null
@@ -641,20 +635,20 @@ function NoticeBoard() {
     }}>
       {/* Header */}
       <div style={{
-        background: "linear-gradient(135deg,#FEF3C7 0%,#FDE68A 100%)", borderBottom: "1px solid #FCD34D",
+        background: theme.accent + "0D", borderBottom: `1px solid ${theme.border}`,
         padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: "#F59E0B", boxShadow: "0 4px 12px #F59E0B88", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📌</div>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: theme.accent, boxShadow: `0 4px 12px ${theme.accent}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📌</div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: theme.text }}>Notice Board</div>
-            <div style={{ fontSize: 12, color: "#92400E", marginTop: 1 }}>
+            <div style={{ fontSize: 12, color: theme.muted, marginTop: 1 }}>
               {notices.length ? `${notices.length} active notice${notices.length > 1 ? "s" : ""}` : "No notices yet"}
             </div>
           </div>
         </div>
         <button onClick={() => setEditing({})} style={{
-          background: "#F59E0B", color: "#fff", border: "none", borderRadius: 9, padding: "8px 16px",
+          background: theme.accent, color: "#fff", border: "none", borderRadius: 9, padding: "8px 16px",
           fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
         }}>+ Add Notice</button>
       </div>
@@ -671,7 +665,7 @@ function NoticeBoard() {
               <div key={g.key}>
                 {/* Date separator */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#92400E", background: "#FEF3C7", border: "1px solid #FCD34D", padding: "3px 12px", borderRadius: 20 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: theme.accent, background: theme.accent + "15", border: `1px solid ${theme.accent}33`, padding: "3px 12px", borderRadius: 20 }}>
                     {dayLabel(g.date)}
                   </span>
                   <span style={{ fontSize: 11, color: theme.muted }}>{g.items.length} notice{g.items.length > 1 ? "s" : ""}</span>
@@ -681,7 +675,7 @@ function NoticeBoard() {
                 {/* Single row — horizontal scroll */}
                 <div className="notice-row" style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
                   {g.items.map((n) => (
-                    <div key={n.id} style={{ width: 240, flexShrink: 0, border: `1px solid ${theme.border}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", background: "#FFFDF7" }}>
+                    <div key={n.id} style={{ width: 240, flexShrink: 0, border: `1px solid ${theme.border}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column", background: "#fff" }}>
                       {n.imageBase64 && (
                         <img src={n.imageBase64} alt={n.title || "notice"} style={{ width: "100%", height: 130, objectFit: "cover" }} />
                       )}
@@ -704,8 +698,8 @@ function NoticeBoard() {
             <style>{`
               .notice-row::-webkit-scrollbar { height: 8px; }
               .notice-row::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 99px; }
-              .notice-row::-webkit-scrollbar-thumb { background: #FCD34D; border-radius: 99px; }
-              .notice-row::-webkit-scrollbar-thumb:hover { background: #F59E0B; }
+              .notice-row::-webkit-scrollbar-thumb { background: #C7CBF0; border-radius: 99px; }
+              .notice-row::-webkit-scrollbar-thumb:hover { background: #6C63FF; }
             `}</style>
           </div>
         )}
@@ -727,10 +721,6 @@ export default function Dashboard({ onNavigate }) {
   const [exams,      setExams]      = useState([]);
   const [birthdays,  setBirthdays]  = useState([]);
   const [attendance, setAttendance] = useState(null);
-  const [profile,    setProfile]    = useState(null);
-  const [slides,     setSlides]     = useState([]);
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [paused,     setPaused]     = useState(false);
   const [loading,    setLoading]    = useState(true);
 
   useEffect(() => {
@@ -739,16 +729,12 @@ export default function Dashboard({ onNavigate }) {
       const _now = new Date();
       const todayMMDD = `${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
 
-      const [studentData, teacherData, classData, admissionData, examData, attendanceData, profileData, slideData] =
+      const [studentData, teacherData, classData, admissionData, examData, attendanceData] =
         await Promise.allSettled([
           studentAPI.getAll(), teacherAPI.getAll(), classAPI.getAll(),
           admissionAPI.getAll(), examAPI.getAll(),
-          attendanceAPI.getSummaryToday(), configAPI.getProfile(),
-          configAPI.getDashboardSlides(),
+          attendanceAPI.getSummaryToday(),
         ]);
-
-      if (profileData.status === "fulfilled")    setProfile(profileData.value);
-      if (slideData.status === "fulfilled" && Array.isArray(slideData.value)) setSlides(slideData.value);
 
       setStats({
         students:          studentData.status   === "fulfilled" ? studentData.value.length   : 0,
@@ -791,21 +777,6 @@ export default function Dashboard({ onNavigate }) {
     })();
   }, []);
 
-  // Hero carousel slides — configured slides first, else fall back to the
-  // legacy single banner/tagline stored on the profile.
-  const heroSlides = slides.length > 0
-    ? slides
-    : (profile?.dashboardBannerBase64 || profile?.dashboardTagline)
-      ? [{ id: "legacy", imageBase64: profile.dashboardBannerBase64, tagline: profile.dashboardTagline }]
-      : [];
-
-  // Auto-advance through the slides (paused on hover).
-  useEffect(() => {
-    if (heroSlides.length <= 1 || paused) return;
-    const t = setInterval(() => setSlideIndex(i => (i + 1) % heroSlides.length), 5000);
-    return () => clearInterval(t);
-  }, [heroSlides.length, paused]);
-
   if (loading) return <LoadingSpinner message="Loading dashboard…" />;
 
   const today      = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -816,18 +787,14 @@ export default function Dashboard({ onNavigate }) {
   const hour      = new Date().getHours();
   const greeting  = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const greetIcon = hour < 12 ? "🌅" : hour < 17 ? "☀️" : "🌆";
-  const cur        = heroSlides.length ? slideIndex % heroSlides.length : 0;
-  const active     = heroSlides.length ? heroSlides[cur] : null;
-  const hasBanner  = !!active?.imageBase64;
-  const tagline    = active?.tagline?.trim() || "";
-  const goTo       = (i) => setSlideIndex((i + heroSlides.length) % heroSlides.length);
 
   return (
     <div>
 
-      {/* ── Greeting bar (user wishes) ──────────────────────────── */}
+      {/* ── Greeting bar (user wishes) — stays pinned while data scrolls ── */}
+      <StickyHeader style={{ borderBottom: "none", padding: "20px 28px 14px 28px" }}>
       <div style={{
-        marginBottom: 16, borderRadius: 16, overflow: "hidden", position: "relative",
+        borderRadius: 16, overflow: "hidden", position: "relative",
         background: "linear-gradient(135deg, #1E1B4B 0%, #312E81 45%, #6D28D9 100%)",
         boxShadow: "0 8px 24px rgba(76,29,149,0.28)",
         padding: "16px 26px",
@@ -878,109 +845,14 @@ export default function Dashboard({ onNavigate }) {
           </div>
         </div>
       </div>
-
-      {/* ── Slides carousel (separate) ──────────────────────────── */}
-      {heroSlides.length > 0 && (
-        <div
-          onMouseEnter={() => setPaused(true)}
-          onMouseLeave={() => setPaused(false)}
-          className="hero-banner"
-          style={{
-            marginBottom: 28, borderRadius: 20, overflow: "hidden",
-            position: "relative", minHeight: hasBanner ? 340 : 150,
-            background: "linear-gradient(135deg, #312E81 0%, #6D28D9 100%)",
-            boxShadow: "0 16px 44px rgba(76,29,149,0.32)",
-            transition: "min-height .4s ease",
-          }}
-        >
-          {/* Stacked slide images — smooth cross-fade */}
-          {heroSlides.map((s, i) => s.imageBase64 && (
-            <img
-              key={s.id ?? i}
-              src={s.imageBase64}
-              alt=""
-              style={{
-                position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-                opacity: i === cur ? 1 : 0,
-                transform: i === cur ? "scale(1.04)" : "scale(1)",
-                transition: "opacity 1s ease, transform 6s ease",
-              }}
-            />
-          ))}
-
-          {/* Bottom gradient for tagline readability */}
-          <div style={{
-            position: "absolute", inset: 0, pointerEvents: "none",
-            background: "linear-gradient(to top, rgba(17,15,45,0.85) 0%, rgba(17,15,45,0.15) 45%, transparent 70%)",
-          }} />
-
-          {/* Active tagline */}
-          {tagline && (
-            <div key={active.id} style={{
-              position: "absolute", left: 30, right: 30, bottom: heroSlides.length > 1 ? 34 : 22, zIndex: 2,
-              display: "flex", alignItems: "center", gap: 10,
-              animation: "heroFade .7s ease",
-            }}>
-              <span style={{ width: 26, height: 3, borderRadius: 3, background: "#A855F7", flexShrink: 0, boxShadow: "0 0 10px #A855F7" }} />
-              <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>
-                {tagline}
-              </span>
-            </div>
-          )}
-
-          {/* Prev / next arrows (appear on hover) */}
-          {heroSlides.length > 1 && (
-            <>
-              <button className="hero-arrow" aria-label="Previous slide" onClick={() => goTo(slideIndex - 1)} style={{ left: 14 }}>‹</button>
-              <button className="hero-arrow" aria-label="Next slide" onClick={() => goTo(slideIndex + 1)} style={{ right: 14 }}>›</button>
-            </>
-          )}
-
-          {/* Carousel dots */}
-          {heroSlides.length > 1 && (
-            <div style={{
-              position: "absolute", bottom: 14, left: 0, right: 0, zIndex: 3,
-              display: "flex", justifyContent: "center", gap: 8,
-            }}>
-              {heroSlides.map((s, i) => (
-                <button
-                  key={s.id ?? i}
-                  onClick={() => setSlideIndex(i)}
-                  aria-label={`Go to slide ${i + 1}`}
-                  style={{
-                    width: i === cur ? 24 : 8, height: 8,
-                    borderRadius: 99, border: "none", cursor: "pointer", padding: 0,
-                    background: i === cur ? "#fff" : "rgba(255,255,255,0.45)",
-                    boxShadow: i === cur ? "0 0 10px rgba(255,255,255,0.6)" : "none",
-                    transition: "all .3s",
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          <style>{`
-            @keyframes heroFade { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: translateY(0) } }
-            .hero-arrow {
-              position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
-              width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
-              display: flex; align-items: center; justify-content: center;
-              font-size: 22px; line-height: 1; color: #fff; padding-bottom: 3px;
-              background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.3);
-              backdrop-filter: blur(6px); opacity: 0; transition: opacity .25s, background .2s;
-            }
-            .hero-banner:hover .hero-arrow { opacity: 1; }
-            .hero-arrow:hover { background: rgba(255,255,255,0.32); }
-          `}</style>
-        </div>
-      )}
+      </StickyHeader>
 
       {/* ── Stat cards ──────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16, marginBottom: 24 }}>
-        <StatCard label="Total Students"     value={stats.students.toLocaleString()}         icon="🎓" color="#6C63FF" onClick={() => onNavigate?.("students")} />
-        <StatCard label="Teachers"           value={stats.teachers.toLocaleString()}          icon="👩‍🏫" color="#3B82F6" onClick={() => onNavigate?.("teachers")} />
-        <StatCard label="Classes"            value={stats.classes.toLocaleString()}           icon="🏫" color="#10B981" onClick={() => onNavigate?.("classes")} />
-        <StatCard label="Pending Admissions" value={stats.pendingAdmissions.toLocaleString()} icon="📋" color="#A855F7" onClick={() => onNavigate?.("admissions")} />
+        <StatCard label="Total Students"     value={stats.students.toLocaleString()}         icon="🎓" color={theme.accent} onClick={() => onNavigate?.("students")} />
+        <StatCard label="Teachers"           value={stats.teachers.toLocaleString()}          icon="👩‍🏫" color={theme.accent} onClick={() => onNavigate?.("teachers")} />
+        <StatCard label="Classes"            value={stats.classes.toLocaleString()}           icon="🏫" color={theme.accent} onClick={() => onNavigate?.("classes")} />
+        <StatCard label="Pending Admissions" value={stats.pendingAdmissions.toLocaleString()} icon="📋" color={theme.accent} onClick={() => onNavigate?.("admissions")} />
       </div>
 
       {/* ── Notice Board ────────────────────────────────────────── */}

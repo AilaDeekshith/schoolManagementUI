@@ -7,10 +7,10 @@ import { theme } from "../../theme";
 const BLANK = {
   name: "", subject: "", class: "All",
   date: "", maxMarks: "", duration: "",
-  examiner: "", instructions: "",
+  instructions: "",
 };
 
-export default function AddExamForm({ onClose, onAdd, onEdit, initial, teachers = [], classOptions = [] }) {
+export default function AddExamForm({ onClose, onAdd, onEdit, initial, classOptions = [] }) {
   const isEdit = !!initial;
   const [form, setForm] = useState(isEdit ? {
     name: initial.name ?? "",
@@ -19,13 +19,11 @@ export default function AddExamForm({ onClose, onAdd, onEdit, initial, teachers 
     date: initial.date ?? "",
     maxMarks: initial.maxMarks ? String(initial.maxMarks) : "",
     duration: initial.duration ?? "",
-    examiner: initial.examiner ?? "",
     instructions: initial.instructions ?? "",
   } : BLANK);
   const [errors, setErrors] = useState({});
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }));
-  const teacherOptions = ["", ...teachers.map(t => t.name)];
 
   const validate = () => {
     const e = {};
@@ -77,11 +75,6 @@ export default function AddExamForm({ onClose, onAdd, onEdit, initial, teachers 
           {field("duration", "Duration", false,
             <TextInput value={form.duration} onChange={set("duration")} placeholder="e.g. 3 hours" />)}
         </FormRow>
-
-        {field("examiner", "Examiner / Invigilator", false,
-          <SelectInput value={form.examiner} onChange={set("examiner")}
-            placeholder="Select a teacher"
-            options={teacherOptions} />)}
 
         {field("instructions", "Special Instructions", false,
           <TextareaInput value={form.instructions} onChange={set("instructions")}

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
 import DataTable from "../components/DataTable";
 import CardWrapper from "../components/CardWrapper";
 import Badge from "../components/Badge";
@@ -50,17 +51,29 @@ export default function Admissions() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [counts, setCounts] = useState({});
 
-  // ── fetch (status filter runs on the backend) ──────────────
+  // ── fetch (status filter + name search run on the backend) ──
   const fetchList = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = activeFilter === "All"
-        ? await admissionAPI.getAll()
-        : await admissionAPI.getByStatus(STATUS_ENUM[activeFilter]);
+      const name = debouncedSearch.trim();
+      let data;
+      if (name) {
+        // Search by applicant name, then narrow by the active status chip.
+        data = await admissionAPI.search(name);
+        if (activeFilter !== "All") {
+          data = data.filter((a) => a.status === STATUS_ENUM[activeFilter]);
+        }
+      } else {
+        data = activeFilter === "All"
+          ? await admissionAPI.getAll()
+          : await admissionAPI.getByStatus(STATUS_ENUM[activeFilter]);
+      }
       setAdmissions(data.map(toRow));
     } catch (err) {
       setError(err.message);
@@ -79,12 +92,18 @@ export default function Admissions() {
 
   const refresh = () => { fetchList(); refreshCounts(); };
 
-  // Re-fetch from the backend whenever the status filter changes.
+  // Debounce typing so we hit the backend once the user pauses.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Re-fetch whenever the status filter or the (debounced) search changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter]);
+  }, [activeFilter, debouncedSearch]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -237,10 +256,24 @@ export default function Admissions() {
         ))}
       </div>
 
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by applicant name…"
+      />
+
       <CardWrapper>
         {loading && <LoadingSpinner message="Loading admissions…" />}
         {error && <ErrorMessage message={error} onRetry={fetchList} />}
-        {!loading && !error && <DataTable columns={columns} data={filtered} />}
+        {!loading && !error && (
+          filtered.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: theme.muted }}>
+              {debouncedSearch ? `No applicants match “${debouncedSearch}”.` : "No admissions found."}
+            </div>
+          ) : (
+            <DataTable columns={columns} data={filtered} />
+          )
+        )}
       </CardWrapper>
 
       {addOpen && (

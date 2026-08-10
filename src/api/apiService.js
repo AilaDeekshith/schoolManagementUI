@@ -135,6 +135,9 @@ export const feesAPI = {
     const qs = p.toString();
     return request("GET", `/fees/search${qs ? `?${qs}` : ""}`);
   },
+  remind:    (id)           => request("POST", `/fees/${id}/remind`),
+  remindAll: (academicYear) => request("POST",
+    `/fees/remind${academicYear ? `?academicYear=${encodeURIComponent(academicYear)}` : ""}`),
 };
 
 export const userMgmtAPI = {
@@ -164,12 +167,6 @@ export const configAPI = {
   setDefaultReceiptTemplate: (id)   => request("PATCH",  `/config/receipt-templates/${id}/default`),
   deleteReceiptTemplate: (id)       => request("DELETE", `/config/receipt-templates/${id}`),
 
-  // Dashboard Hero Slides (carousel)
-  getDashboardSlides:   ()         => request("GET",    "/config/dashboard-slides"),
-  createDashboardSlide: (data)     => request("POST",   "/config/dashboard-slides", data),
-  updateDashboardSlide: (id, data) => request("PUT",    `/config/dashboard-slides/${id}`, data),
-  deleteDashboardSlide: (id)       => request("DELETE", `/config/dashboard-slides/${id}`),
-
   // Grades
   getGrades:     ()         => request("GET",    "/config/grades"),
   createGrade:   (data)     => request("POST",   "/config/grades", data),
@@ -177,6 +174,7 @@ export const configAPI = {
 
   // Sections
   addSection:    (gid, letter) => request("POST",   `/config/grades/${gid}/sections`, { letter }),
+  updateSection: (sid, data)   => request("PUT",    `/config/sections/${sid}`, data),
   deleteSection: (sid)         => request("DELETE", `/config/sections/${sid}`),
 
   // Subjects
@@ -225,6 +223,11 @@ export const examSeatingAPI = {
   unassignSeat: (id, row, col, seat)            => request("DELETE", `/exam-seating/plans/${id}/seats/${row}/${col}/${seat}`),
   autoAssign:   (id)                            => request("POST",   `/exam-seating/plans/${id}/auto-assign`),
   clearSeats:   (id)                            => request("DELETE", `/exam-seating/plans/${id}/seats`),
+  // Sessions (time periods + invigilator within a room)
+  getSessions:  (planId)                        => request("GET",    `/exam-seating/plans/${planId}/sessions`),
+  addSession:   (planId, data)                  => request("POST",   `/exam-seating/plans/${planId}/sessions`, data),
+  updateSession:(sid, data)                     => request("PUT",    `/exam-seating/sessions/${sid}`, data),
+  deleteSession:(sid)                            => request("DELETE", `/exam-seating/sessions/${sid}`),
 };
 
 export const attendanceAPI = {

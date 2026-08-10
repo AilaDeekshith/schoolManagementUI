@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "../toast";
 import { attendanceAPI, studentAPI, configAPI } from "../api/apiService";
 import { theme } from "../theme";
+import StickyHeader from "../components/StickyHeader";
 
 const STATUS_OPTIONS = [
   { key: "PRESENT", label: "P",    color: "#10B981", bg: "#ecfdf5" },
@@ -143,23 +144,25 @@ export default function Attendance() {
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: theme.text }}>
-          Student Attendance
-        </h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          {["mark", "report"].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{
-              padding: "8px 18px", borderRadius: 8, border: "none",
-              background: tab === t ? theme.accent : "#e5e7eb",
-              color: tab === t ? "#fff" : "#374151",
-              fontWeight: 600, fontSize: 13, cursor: "pointer",
-            }}>
-              {t === "mark" ? "Mark Attendance" : "Reports"}
-            </button>
-          ))}
+      <StickyHeader>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: theme.text }}>
+            Student Attendance
+          </h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["mark", "report"].map(t => (
+              <button key={t} onClick={() => setTab(t)} style={{
+                padding: "8px 18px", borderRadius: 8, border: "none",
+                background: tab === t ? theme.accent : "#e5e7eb",
+                color: tab === t ? "#fff" : "#374151",
+                fontWeight: 600, fontSize: 13, cursor: "pointer",
+              }}>
+                {t === "mark" ? "Mark Attendance" : "Reports"}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </StickyHeader>
 
       {/* Filters row */}
       <div style={{

@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
-import { examAPI, configAPI, studentAPI, examSeatingAPI } from "../api/apiService";
+import StickyHeader from "../components/StickyHeader";
+import { examAPI, configAPI, studentAPI, teacherAPI, examSeatingAPI } from "../api/apiService";
 
 // ── helpers ───────────────────────────────────────────────────
 const initials = (name = "") =>
@@ -46,6 +47,25 @@ const fmtDate = (d) => {
   catch { return d; }
 };
 
+const dateParts = (d) => {
+  try {
+    const dt = new Date(d + "T00:00:00");
+    return {
+      weekday: dt.toLocaleDateString("en-IN", { weekday: "short" }),
+      day: String(dt.getDate()).padStart(2, "0"),
+      month: dt.toLocaleDateString("en-IN", { month: "short" }),
+    };
+  } catch { return { weekday: "", day: "—", month: "" }; }
+};
+
+const fmt12 = (t) => {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  if (Number.isNaN(h)) return t;
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+};
+const sessionTime = (a, b) => (!a && !b) ? "Time not set" : `${a ? fmt12(a) : "—"}${b ? ` – ${fmt12(b)}` : ""}`;
+
 // ══════════════════════════════════════════════════════════════
 // Room (plan) create / edit form
 // ══════════════════════════════════════════════════════════════
@@ -77,6 +97,8 @@ function RoomForm({ initial, classes, onSave, onCancel }) {
     onSave({ roomName: form.roomName.trim(), rows, columns, seatsPerBench, classNames: form.classNames });
   };
 
+  const lbl = { fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 };
+
   const numField = (label, key, ph) => (
     <div>
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>{label}</div>
@@ -95,7 +117,7 @@ function RoomForm({ initial, classes, onSave, onCancel }) {
 
       <form onSubmit={submit}>
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>Room / Hall Name</div>
+          <div style={lbl}>Room / Hall Name</div>
           <input type="text" value={form.roomName} onChange={(e) => set("roomName", e.target.value)} placeholder="e.g. Hall A / Room 101" style={inp()} />
         </div>
 
@@ -415,14 +437,17 @@ function SeatingArranger({ plan, onBack, onChanged }) {
 export default function ExamSeating() {
   const [exams, setExams] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [examId, setExamId] = useState("");
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [editing, setEditing] = useState(null); // null | {} (new) | plan (edit)
   const [arranging, setArranging] = useState(null); // plan being arranged
+  const [sessionEdit, setSessionEdit] = useState(null); // { planId, session|{} }
 
   useEffect(() => {
     examAPI.getAll().then(setExams).catch(() => {});
+    teacherAPI.getAll().then(d => setTeachers((d || []).map(t => ({ id: t.id, name: t.name })))).catch(() => {});
     // Class options come from the configured grades & sections.
     configAPI.getGrades()
       .then(grades => setClasses((grades || []).flatMap(g =>
@@ -465,6 +490,21 @@ export default function ExamSeating() {
     if (!confirm(`Delete room "${plan.roomName}" and its seating?`)) return;
     try { await examSeatingAPI.deletePlan(plan.id); loadPlans(examId); }
     catch (err) { toast.error("Failed to delete: " + err.message); }
+  };
+
+  const handleSessionSave = async (data) => {
+    try {
+      if (sessionEdit.session?.id) await examSeatingAPI.updateSession(sessionEdit.session.id, data);
+      else await examSeatingAPI.addSession(sessionEdit.planId, data);
+      setSessionEdit(null);
+      loadPlans(examId);
+    } catch (err) { toast.error("Failed to save session: " + err.message); }
+  };
+
+  const handleSessionDelete = async (sid) => {
+    if (!confirm("Remove this session?")) return;
+    try { await examSeatingAPI.deleteSession(sid); loadPlans(examId); }
+    catch (err) { toast.error("Failed to delete session: " + err.message); }
   };
 
   // ── Arranging a specific room ──────────────────────────────
@@ -543,6 +583,59 @@ export default function ExamSeating() {
                             <span key={cn} style={{ fontSize: 11, fontWeight: 700, color: theme.blue, background: theme.blue + "15", borderRadius: 6, padding: "2px 8px" }}>{cn}</span>
                           ))}
                     </div>
+
+                    {/* Sessions (time periods + invigilator) */}
+                    <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: theme.text, textTransform: "uppercase", letterSpacing: .5, display: "flex", alignItems: "center", gap: 6 }}>
+                          🗓️ Sessions
+                          <span style={{ fontSize: 10, fontWeight: 800, color: theme.accent, background: theme.accent + "15", borderRadius: 99, padding: "1px 8px" }}>{(p.sessions || []).length}</span>
+                        </span>
+                        <button onClick={() => setSessionEdit({ planId: p.id, session: {} })} style={btn("blue", true)}>+ Add Session</button>
+                      </div>
+                      {(p.sessions || []).length === 0 ? (
+                        <div style={{ fontSize: 12, color: theme.muted, background: theme.bg, border: `1px dashed ${theme.border}`, borderRadius: 10, padding: "14px 12px", textAlign: "center" }}>
+                          No sessions yet — add a time period &amp; invigilator.
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {p.sessions.map((s) => {
+                            const d = dateParts(s.examDate);
+                            return (
+                              <div key={s.id} className="es-session" style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1px solid ${theme.border}`, borderLeft: `3px solid ${theme.accent}`, borderRadius: 10, padding: "9px 12px" }}>
+                                {/* Date badge */}
+                                <div style={{ textAlign: "center", minWidth: 40, flexShrink: 0 }}>
+                                  <div style={{ fontSize: 9.5, fontWeight: 800, color: theme.accent, textTransform: "uppercase", letterSpacing: .3 }}>{d.weekday}</div>
+                                  <div style={{ fontSize: 18, fontWeight: 900, color: theme.text, lineHeight: 1.05 }}>{d.day}</div>
+                                  <div style={{ fontSize: 9.5, color: theme.muted, textTransform: "uppercase" }}>{d.month}</div>
+                                </div>
+                                <div style={{ width: 1, alignSelf: "stretch", background: theme.border }} />
+
+                                {/* Time + invigilator */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 12.5, fontWeight: 700, color: theme.text }}>🕐 {sessionTime(s.startTime, s.endTime)}</div>
+                                  <div style={{ marginTop: 4 }}>
+                                    <span style={{
+                                      display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
+                                      color: s.invigilatorName ? theme.green : theme.muted,
+                                      background: (s.invigilatorName ? theme.green : theme.muted) + "14",
+                                      borderRadius: 20, padding: "2px 9px",
+                                    }}>👁️ {s.invigilatorName || "No invigilator"}</span>
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                                  <button onClick={() => setSessionEdit({ planId: p.id, session: s })} title="Edit session" style={{ background: theme.blue + "15", color: theme.blue, border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", fontSize: 12 }}>✏️</button>
+                                  <button onClick={() => handleSessionDelete(s.id)} title="Remove session" style={{ background: theme.red + "12", color: theme.red, border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", fontSize: 15, fontWeight: 800, lineHeight: 1 }}>×</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
                     <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
                       <button onClick={() => setArranging(p)} style={{ ...btn("primary", true), flex: 1 }}>🪑 Arrange Seats</button>
                       <button onClick={() => setEditing(p)} style={btn("blue", true)}>Edit</button>
@@ -555,18 +648,79 @@ export default function ExamSeating() {
           )}
         </>
       )}
+
+      {sessionEdit && (
+        <SessionModal
+          initial={sessionEdit.session}
+          teachers={teachers}
+          onSave={handleSessionSave}
+          onCancel={() => setSessionEdit(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SessionModal({ initial, teachers, onSave, onCancel }) {
+  const [form, setForm] = useState({
+    examDate: initial?.examDate || "",
+    startTime: initial?.startTime || "",
+    endTime: initial?.endTime || "",
+    invigilatorId: initial?.invigilatorId ? String(initial.invigilatorId) : "",
+  });
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const lbl = { fontSize: 11, fontWeight: 700, color: theme.muted, marginBottom: 5, textTransform: "uppercase", letterSpacing: .4 };
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!form.examDate) { toast.warning("Pick a date"); return; }
+    if (form.startTime && form.endTime && form.startTime >= form.endTime) { toast.warning("End time must be after start time"); return; }
+    onSave({
+      examDate: form.examDate,
+      startTime: form.startTime || null,
+      endTime: form.endTime || null,
+      invigilatorId: form.invigilatorId ? Number(form.invigilatorId) : null,
+    });
+  };
+
+  return (
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, padding: 26, width: 440, maxWidth: "95vw" }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: theme.text, marginBottom: 18 }}>{initial?.id ? "Edit Session" : "Add Session"}</div>
+        <form onSubmit={submit}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={lbl}>Date *</div>
+            <input type="date" value={form.examDate} onChange={(e) => set("examDate", e.target.value)} style={inp()} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div><div style={lbl}>Start Time</div><input type="time" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} style={inp()} /></div>
+            <div><div style={lbl}>End Time</div><input type="time" value={form.endTime} onChange={(e) => set("endTime", e.target.value)} style={inp()} /></div>
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={lbl}>Invigilator</div>
+            <select value={form.invigilatorId} onChange={(e) => set("invigilatorId", e.target.value)} style={inp()}>
+              <option value="">— Unassigned —</option>
+              {(teachers || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="submit" style={btn("primary")}>{initial?.id ? "Update Session" : "Add Session"}</button>
+            <button type="button" onClick={onCancel} style={btn("ghost")}>Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
 function PageTitle() {
   return (
-    <div style={{ marginBottom: 22 }}>
+    <StickyHeader>
       <div style={{ fontSize: 22, fontWeight: 900, color: theme.text }}>Exam Seating Arrangement</div>
       <div style={{ fontSize: 13, color: theme.muted, marginTop: 2 }}>
         Select an exam, design each room, choose the classes and assign every student a seat.
       </div>
-    </div>
+    </StickyHeader>
   );
 }
 

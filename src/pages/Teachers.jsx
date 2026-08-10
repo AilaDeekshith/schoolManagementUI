@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
+import SearchInput from "../components/SearchInput";
 import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
@@ -245,12 +246,16 @@ export default function Teachers() {
   const [addOpen, setAddOpen]         = useState(false);
   const [editTarget, setEditTarget]   = useState(null);
   const [viewTarget, setViewTarget]   = useState(null);
+  const [search, setSearch]           = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // ── fetch (search runs on the backend) ─────────────────────
   const fetchTeachers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await teacherAPI.getAll();
+      const name = debouncedSearch.trim();
+      const data = name ? await teacherAPI.search(name) : await teacherAPI.getAll();
       setTeachers(data.map(toRow));
     } catch (err) {
       setError(err.message);
@@ -259,9 +264,18 @@ export default function Teachers() {
     }
   };
 
+  // Debounce typing so we hit the backend once the user pauses.
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Any change to the search triggers a backend call (also runs on mount).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTeachers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const toPayload = (formData) => ({
     name: formData.name,
@@ -313,6 +327,12 @@ export default function Teachers() {
         onAction={() => setAddOpen(true)}
       />
 
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by teacher name…"
+      />
+
       {loading && <LoadingSpinner message="Loading teachers…" />}
       {error && <ErrorMessage message={error} onRetry={fetchTeachers} />}
 
@@ -321,15 +341,17 @@ export default function Teachers() {
           <div style={{ color: theme.muted, fontSize: 12, marginBottom: 16 }}>
             {teachers.length} teacher{teachers.length !== 1 ? "s" : ""} — click any card to view details
           </div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: 16,
-          }}>
-            {teachers.length === 0 ? (
-              <p style={{ color: theme.muted }}>No teachers found.</p>
-            ) : (
-              teachers.map((t) => (
+          {teachers.length === 0 ? (
+            <div style={{ padding: 40, textAlign: "center", color: theme.muted }}>
+              {debouncedSearch ? `No teachers match “${debouncedSearch}”.` : "No teachers found."}
+            </div>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 16,
+            }}>
+              {teachers.map((t) => (
                 <TeacherCard
                   key={t.id}
                   teacher={t}
@@ -337,9 +359,9 @@ export default function Teachers() {
                   onEdit={setEditTarget}
                   onView={setViewTarget}
                 />
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 

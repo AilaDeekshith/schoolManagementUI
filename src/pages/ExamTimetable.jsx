@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
 import Modal from "../components/Modal";
+import StickyHeader from "../components/StickyHeader";
 import { examAPI, configAPI, examScheduleAPI } from "../api/apiService";
 
 const inp = (extra = {}) => ({
@@ -170,12 +171,12 @@ export default function ExamTimetable() {
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
+      <StickyHeader>
         <div style={{ fontSize: 22, fontWeight: 900, color: theme.text }}>Exam Timetable</div>
         <div style={{ fontSize: 13, color: theme.muted, marginTop: 2 }}>
           Schedule each subject paper (date, time, room) for an exam.
         </div>
-      </div>
+      </StickyHeader>
 
       {/* Exam selector */}
       <div style={{ background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 14, padding: "16px 20px", marginBottom: 22, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>

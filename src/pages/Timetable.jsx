@@ -4,6 +4,7 @@ import { toast } from "../toast";
 import { theme, subjectColors } from "../theme";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
+import StickyHeader from "../components/StickyHeader";
 import { timetableAPI, teacherAPI, periodAPI, configAPI } from "../api/apiService";
 
 // ─────────────────────────────────────────────────────────────
@@ -737,7 +738,8 @@ export default function Timetable() {
   return (
     <div>
       {/* ── Top bar ── */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+      <StickyHeader>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <h2 style={{ margin:0, fontSize:22, fontWeight:800, color:theme.text }}>Class Timetable</h2>
           <p style={{ margin:"4px 0 0", fontSize:12, color:theme.muted }}>
@@ -773,7 +775,8 @@ export default function Timetable() {
             {classes.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-      </div>
+        </div>
+      </StickyHeader>
 
       {/* ── Content ── */}
       {periodLoading
