@@ -1,0 +1,5 @@
+
+window._env_ = {
+  API_URL: "${VITE_BACK_END_URL}",
+  OTHER_VAR: "${OTHER_VAR}"
+};

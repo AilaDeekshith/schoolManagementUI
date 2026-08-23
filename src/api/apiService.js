@@ -1,7 +1,10 @@
 // src/api/apiService.js
 import { canWrite, moduleForPath } from "../access";
+import config from "../config";
 
-const BASE_URL = import.meta.env.VITE_BACK_END_URL;
+console.log(config.API_URL)
+
+const BASE_URL = config?.API_URL
 
 async function request(method, path, body = null) {
   // Enforce read-only access: block writes to modules the user can't write.
