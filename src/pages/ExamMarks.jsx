@@ -164,19 +164,25 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
   const [subjects, setSubjects]   = useState([]);
   const [selSubject, setSelSubject] = useState("");
   const [classes, setClasses]     = useState([]);
-  const [selClass, setSelClass]   = useState(exam.class !== "All" ? exam.class : "");
+  const examClasses = (exam.classes && exam.classes.length)
+    ? exam.classes
+    : (exam.class && exam.class !== "All" ? [exam.class] : []);
+  const [selClass, setSelClass]   = useState(examClasses.length === 1 ? examClasses[0] : "");
   const [students, setStudents]   = useState([]);
   const [entries, setEntries]     = useState({}); // { studentId: { marks, remarks } }
   const [loading, setLoading]     = useState(false);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
 
-  // Load subjects (from configAPI or use exam subject)
+  // Subjects come from the exam's subject list (fall back to config for legacy exams).
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
-    if (exam.subject && exam.subject !== "All Subjects") {
-      setSubjects([exam.subject]);
-      setSelSubject(exam.subject);
+    const fromExam = (exam.subjects && exam.subjects.length)
+      ? exam.subjects
+      : (exam.subject && exam.subject !== "All Subjects" ? [exam.subject] : []);
+    if (fromExam.length) {
+      setSubjects(fromExam);
+      setSelSubject(fromExam[0]);
     } else {
       configAPI.getSubjects()
         .then(data => {
@@ -190,11 +196,19 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
         });
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [exam.subject]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exam.id]);
 
-  // Load class list if exam is "All"
+  // Classes come from the exam's class list (fall back to config for legacy exams).
   useEffect(() => {
-    if (exam.class === "All") {
+    const fromExam = (exam.classes && exam.classes.length)
+      ? exam.classes
+      : (exam.class && exam.class !== "All" ? [exam.class] : []);
+    if (fromExam.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setClasses(fromExam);
+      if (fromExam.length === 1) setSelClass(fromExam[0]);
+    } else {
       configAPI.getGrades()
         .then(grades => {
           const opts = grades.flatMap(g =>
@@ -205,7 +219,8 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
         })
         .catch(() => {});
     }
-  }, [exam.class]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exam.id]);
 
   // Load students when class is selected
   useEffect(() => {
@@ -294,11 +309,10 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
               Exam Marks Entry
             </div>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#fff" }}>{exam.name}</h2>
-            <div style={{ color: "#C7D2FE", fontSize: 13, marginTop: 4, display: "flex", gap: 16 }}>
-              <span>📅 {exam.date}</span>
-              <span>🏫 {exam.class}</span>
+            <div style={{ color: "#C7D2FE", fontSize: 13, marginTop: 4, display: "flex", gap: 16, flexWrap: "wrap" }}>
+              {exam.date && <span>📅 {exam.date}</span>}
+              <span>🏫 {selClass || (classes.length ? `${classes.length} classes` : "—")}</span>
               <span>📊 Max: {exam.maxMarks} marks</span>
-              {exam.subject !== "All Subjects" && <span>📖 {exam.subject}</span>}
             </div>
           </div>
           {onClose && (
@@ -326,7 +340,7 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
             ))}
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10, padding: "8px 0" }}>
-            {exam.class === "All" && (
+            {classes.length > 1 && (
               <select value={selClass} onChange={e => setSelClass(e.target.value)} style={selSt}>
                 <option value="">— Select Class —</option>
                 {classes.map(c => <option key={c} value={c}>{c}</option>)}

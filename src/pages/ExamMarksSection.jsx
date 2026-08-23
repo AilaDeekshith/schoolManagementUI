@@ -1,7 +1,7 @@
 // pages/ExamMarksSection.jsx — dedicated "Enter Marks" section under Exams
 import { useState, useEffect } from "react";
 import { theme } from "../theme";
-import { examAPI } from "../api/apiService";
+import { examAPI, configAPI } from "../api/apiService";
 import StickyHeader from "../components/StickyHeader";
 import ExamMarks from "./ExamMarks";
 
@@ -15,10 +15,10 @@ const fmtDate = (d) => {
 const toMarksExam = (e) => ({
   id: e.id,
   name: e.name,
-  subject: e.subject,
-  class: e.className || "All",
+  subjects: e.subjects || [],
+  classes: e.classes || [],
   date: e.examDate,
-  maxMarks: e.maxMarks,
+  maxMarks: e.maxMarks ?? 100,
 });
 
 const inp = {
@@ -27,11 +27,34 @@ const inp = {
   fontFamily: "'DM Sans', sans-serif", minWidth: 300,
 };
 
+const filterSel = {
+  padding: "8px 12px", borderRadius: 8, border: `1.5px solid ${theme.border}`,
+  background: theme.bg, color: theme.text, fontSize: 13, fontWeight: 700,
+  outline: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+};
+
 export default function ExamMarksSection() {
   const [exams, setExams]   = useState([]);
   const [examId, setExamId] = useState("");
+  const [years, setYears]   = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [yearFilter, setYearFilter] = useState("All");
+  const [classFilter, setClassFilter] = useState("All");
 
-  useEffect(() => { examAPI.getAll().then((d) => setExams(d || [])).catch(() => {}); }, []);
+  useEffect(() => {
+    configAPI.getAcademicYears().then((d) => setYears((d || []).map((y) => y.year))).catch(() => {});
+    configAPI.getGrades()
+      .then((grades) => setClasses((grades || []).flatMap((g) => (g.sections ?? []).map((s) => `${g.name}-${s.letter}`))))
+      .catch(() => {});
+  }, []);
+
+  // Exams are fetched from the backend, already filtered by the selected year/class.
+  useEffect(() => {
+    examAPI.getAll({
+      academicYear: yearFilter === "All" ? undefined : yearFilter,
+      className: classFilter === "All" ? undefined : classFilter,
+    }).then((d) => setExams(d || [])).catch(() => setExams([]));
+  }, [yearFilter, classFilter]);
 
   const selected = exams.find((e) => String(e.id) === String(examId));
 
@@ -44,17 +67,33 @@ export default function ExamMarksSection() {
         </div>
       </StickyHeader>
 
-      {/* Exam selector */}
+      {/* Filters + exam selector */}
       <div style={{ background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 14, padding: "16px 20px", marginBottom: 22, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Select Exam</div>
-        <select value={examId} onChange={(e) => setExamId(e.target.value)} style={inp}>
-          <option value="">— Choose an exam —</option>
-          {exams.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name} · {e.className || "All"} · {fmtDate(e.examDate)}
-            </option>
-          ))}
-        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Academic Year</span>
+          <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setExamId(""); }} style={filterSel}>
+            <option value="All">All Years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Class</span>
+          <select value={classFilter} onChange={(e) => { setClassFilter(e.target.value); setExamId(""); }} style={filterSel}>
+            <option value="All">All Classes</option>
+            {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Select Exam</span>
+          <select value={examId} onChange={(e) => setExamId(e.target.value)} style={inp}>
+            <option value="">— Choose an exam —</option>
+            {exams.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}{e.academicYear ? ` · ${e.academicYear}` : ""}{e.classes?.length ? ` · ${e.classes.length} class${e.classes.length === 1 ? "" : "es"}` : ""}{e.examDate ? ` · ${fmtDate(e.examDate)}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {!examId || !selected ? (

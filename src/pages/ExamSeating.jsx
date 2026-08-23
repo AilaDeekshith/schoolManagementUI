@@ -438,6 +438,9 @@ export default function ExamSeating() {
   const [exams, setExams] = useState([]);
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [years, setYears] = useState([]);
+  const [yearFilter, setYearFilter] = useState("All");
+  const [classFilter, setClassFilter] = useState("All");
   const [examId, setExamId] = useState("");
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -446,8 +449,8 @@ export default function ExamSeating() {
   const [sessionEdit, setSessionEdit] = useState(null); // { planId, session|{} }
 
   useEffect(() => {
-    examAPI.getAll().then(setExams).catch(() => {});
     teacherAPI.getAll().then(d => setTeachers((d || []).map(t => ({ id: t.id, name: t.name })))).catch(() => {});
+    configAPI.getAcademicYears().then(d => setYears((d || []).map(y => y.year))).catch(() => {});
     // Class options come from the configured grades & sections.
     configAPI.getGrades()
       .then(grades => setClasses((grades || []).flatMap(g =>
@@ -457,6 +460,14 @@ export default function ExamSeating() {
         }))))
       .catch(() => {});
   }, []);
+
+  // Exams are fetched from the backend, already filtered by the selected year/class.
+  useEffect(() => {
+    examAPI.getAll({
+      academicYear: yearFilter === "All" ? undefined : yearFilter,
+      className: classFilter === "All" ? undefined : classFilter,
+    }).then(d => setExams(d || [])).catch(() => setExams([]));
+  }, [yearFilter, classFilter]);
 
   const loadPlans = useCallback((id) => {
     if (!id) { setPlans([]); return; }
@@ -473,6 +484,14 @@ export default function ExamSeating() {
   }, [examId, loadPlans]);
 
   const selectedExam = exams.find((e) => String(e.id) === String(examId));
+
+  // Only the classes attached to the selected exam may be seated in its rooms.
+  // Fall back to the full configured list only when the exam has none noted.
+  const examClasses = (() => {
+    const noted = selectedExam?.classes || [];
+    if (noted.length === 0) return classes;
+    return noted.map((cn) => ({ id: cn, className: cn }));
+  })();
 
   const handleSave = async (data) => {
     try {
@@ -525,15 +544,36 @@ export default function ExamSeating() {
     <div>
       <PageTitle />
 
-      {/* Exam selector */}
+      {/* Filters + exam selector */}
       <div style={{ background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 14, padding: "18px 20px", marginBottom: 22, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4 }}>Select Exam</div>
-        <select value={examId} onChange={(e) => { setExamId(e.target.value); setEditing(null); }} style={{ ...inp({ maxWidth: 360 }) }}>
-          <option value="">— Choose an exam —</option>
-          {exams.map((e) => (
-            <option key={e.id} value={e.id}>{e.name} · {e.subject} · {fmtDate(e.examDate)}</option>
-          ))}
-        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4 }}>Academic Year</span>
+          <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setExamId(""); setEditing(null); }} style={inp({ width: "auto", fontWeight: 700 })}>
+            <option value="All">All Years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4 }}>Class</span>
+          <select value={classFilter} onChange={(e) => { setClassFilter(e.target.value); setExamId(""); setEditing(null); }} style={inp({ width: "auto", fontWeight: 700 })}>
+            <option value="All">All Classes</option>
+            {classes.map((c) => <option key={c.id} value={c.className}>{c.className}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4 }}>Select Exam</span>
+          <select value={examId} onChange={(e) => { setExamId(e.target.value); setEditing(null); }} style={{ ...inp({ maxWidth: 360 }) }}>
+            <option value="">— Choose an exam —</option>
+            {exams.map((e) => {
+              const subs = (e.subjects || []).join(", ");
+              return (
+                <option key={e.id} value={e.id}>
+                  {e.name}{e.academicYear ? ` · ${e.academicYear}` : ""}{subs ? ` · ${subs}` : ""}{e.examDate ? ` · ${fmtDate(e.examDate)}` : ""}
+                </option>
+              );
+            })}
+          </select>
+        </div>
         {selectedExam && (
           <span style={{ fontSize: 12.5, color: theme.muted }}>
             {plans.length} room{plans.length !== 1 ? "s" : ""} configured
@@ -546,7 +586,7 @@ export default function ExamSeating() {
       ) : editing ? (
         <RoomForm
           initial={editing}
-          classes={classes}
+          classes={examClasses}
           onSave={handleSave}
           onCancel={() => setEditing(null)}
         />

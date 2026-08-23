@@ -19,12 +19,14 @@ import Timetable     from "./pages/Timetable";
 import Classes       from "./pages/Classes";
 import ClassroomLayout from "./pages/ClassroomLayout";
 import Fees          from "./pages/Fees";
+import FeesDashboard  from "./pages/FeesDashboard";
 import Exams         from "./pages/Exams";
 import ExamSeating   from "./pages/ExamSeating";
 import ExamTimetable from "./pages/ExamTimetable";
 import ExamMarksSection from "./pages/ExamMarksSection";
 import Configuration from "./pages/Configuration";
 import Syllabus      from "./pages/Syllabus";
+import SyllabusDashboard from "./pages/SyllabusDashboard";
 import Attendance    from "./pages/Attendance";
 import Login         from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -69,7 +71,7 @@ export default function App() {
 
   const [active, setActive]             = useState("dashboard");
   // Active sub-section per grouped module (Configuration, Exams).
-  const [subSections, setSubSections]   = useState({ configuration: "profile", exams: "exams", classes: "classes" });
+  const [subSections, setSubSections]   = useState({ configuration: "profile", exams: "exams", classes: "classes", syllabus: "dashboard", fees: "list" });
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [selectedClass, setSelectedClass] = useState(null); // { id, name }
   const [selectedStudent, setSelectedStudent] = useState(null); // student profile row
@@ -170,6 +172,12 @@ export default function App() {
       if (sub === "examMarks")     return <ExamMarksSection />;
       if (sub === "examSeating")   return <ExamSeating />;
       return <Exams onNavigate={handleSetActive} />;
+    }
+    if (safeActive === "syllabus") {
+      return subSections.syllabus === "manage" ? <Syllabus /> : <SyllabusDashboard />;
+    }
+    if (safeActive === "fees") {
+      return subSections.fees === "dashboard" ? <FeesDashboard /> : <Fees />;
     }
     const Page = PAGES[safeActive];
     return <Page onNavigate={handleSetActive} />;

@@ -193,10 +193,17 @@ export const configAPI = {
   deleteFeeStructure:  (id)       => request("DELETE", `/config/fee-structure/${id}`),
 
   // Holidays
-  getHolidays:    ()         => request("GET",    "/config/holidays"),
+  getHolidays:    (academicYear) => request("GET",
+    `/config/holidays${academicYear ? `?academicYear=${encodeURIComponent(academicYear)}` : ""}`),
   createHoliday:  (data)     => request("POST",   "/config/holidays", data),
   updateHoliday:  (id, data) => request("PUT",    `/config/holidays/${id}`, data),
   deleteHoliday:  (id)       => request("DELETE", `/config/holidays/${id}`),
+
+  // Academic Years
+  getAcademicYears:    ()         => request("GET",    "/config/academic-years"),
+  createAcademicYear:  (data)     => request("POST",   "/config/academic-years", data),
+  updateAcademicYear:  (id, data) => request("PUT",    `/config/academic-years/${id}`, data),
+  deleteAcademicYear:  (id)       => request("DELETE", `/config/academic-years/${id}`),
 };
 
 export const noticesAPI = {
@@ -258,9 +265,18 @@ export const examResultsAPI = {
 };
 
 export const examAPI = {
-  getAll:             ()           => request("GET",    "/exams"),
+  // All filtering runs on the backend; pass any of { academicYear, status, className }.
+  getAll: ({ academicYear, status, className } = {}) => {
+    const p = new URLSearchParams();
+    if (academicYear) p.append("academicYear", academicYear);
+    if (status)       p.append("status", status);
+    if (className)    p.append("className", className);
+    const qs = p.toString();
+    return request("GET", `/exams${qs ? `?${qs}` : ""}`);
+  },
   getById:            (id)         => request("GET",    `/exams/${id}`),
   create:             (data)       => request("POST",   "/exams", data),
+  createBulk:         (list)       => request("POST",   "/exams/bulk", list),
   update:             (id, data)   => request("PUT",    `/exams/${id}`, data),
   delete:             (id)         => request("DELETE", `/exams/${id}`),
   updateStatus:       (id, status) => request("PATCH",  `/exams/${id}/status?status=${status}`),
@@ -284,6 +300,14 @@ export const syllabusAPI = {
   getAll:      ()             => request("GET",    "/syllabi"),
   getByGrade:  (grade)        => request("GET",    `/syllabi?grade=${encodeURIComponent(grade)}`),
   getByYear:   (year)         => request("GET",    `/syllabi?year=${encodeURIComponent(year)}`),
+  // Combined filter; both params optional, filtered in the DB.
+  getFiltered: ({ grade, year } = {}) => {
+    const p = new URLSearchParams();
+    if (grade) p.append("grade", grade);
+    if (year)  p.append("year", year);
+    const qs = p.toString();
+    return request("GET", `/syllabi${qs ? `?${qs}` : ""}`);
+  },
   getById:     (id)           => request("GET",    `/syllabi/${id}`),
   create:      (data)         => request("POST",   "/syllabi", data),
   update:      (id, data)     => request("PUT",    `/syllabi/${id}`, data),

@@ -38,16 +38,28 @@ const STATUS_COLOR = {
   CANCELLED: theme.red,
 };
 
+const filterSelSt = {
+  padding: "7px 12px", borderRadius: 8, border: `1px solid ${theme.border}`,
+  background: theme.card, color: theme.text, fontSize: 12.5, fontWeight: 700,
+  outline: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+};
+
 function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
   const [hovered, setHovered] = useState(false);
   const accent = STATUS_COLOR[exam.status] || theme.accent;
 
   const details = [
     ["📅", "Date", exam.date],
-    ["🏫", "Class", exam.class],
     ["📊", "Max Marks", exam.maxMarks],
     ["⏱", "Duration", exam.duration],
   ].filter(([, , v]) => v);
+
+  const subjects = exam.subjects || [];
+  const classes = exam.classes || [];
+  const chipStyle = (color) => ({
+    fontSize: 11, fontWeight: 700, color, background: color + "15",
+    border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 9px",
+  });
 
   return (
     <div
@@ -79,35 +91,67 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
           <Badge status={exam.status} />
         </div>
 
-        {/* Name & subject */}
-        <div style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.25 }}>
+        {/* Name */}
+        <div style={{ fontSize: 18, fontWeight: 800, color: theme.text, lineHeight: 1.25, marginBottom: exam.academicYear ? 8 : 14 }}>
           {exam.name}
         </div>
-        <div style={{ color: theme.accent, fontWeight: 700, fontSize: 12.5, marginTop: 3, marginBottom: 16 }}>
-          {exam.subject}
+
+        {/* Academic year */}
+        {exam.academicYear && (
+          <div style={{ marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: theme.purple, background: theme.purple + "15", border: `1px solid ${theme.purple}33`, borderRadius: 20, padding: "2px 10px" }}>
+              📆 {exam.academicYear}
+            </span>
+          </div>
+        )}
+
+        {/* Subjects */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10.5, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+            📖 Subjects ({subjects.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {subjects.length ? subjects.map((s) => (
+              <span key={s} style={chipStyle(theme.accent)}>{s}</span>
+            )) : <span style={{ fontSize: 12, color: theme.muted }}>—</span>}
+          </div>
         </div>
 
-        {/* Details grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-          background: theme.bg,
-          borderRadius: 12,
-          padding: "14px 16px",
-          marginBottom: 16,
-        }}>
-          {details.map(([icon, label, val]) => (
-            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <span style={{ fontSize: 10.5, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>
-                {icon} {label}
-              </span>
-              <span style={{ fontSize: 13.5, color: theme.text, fontWeight: 700 }}>
-                {String(val)}
-              </span>
-            </div>
-          ))}
+        {/* Classes */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10.5, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+            🏫 Classes ({classes.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {classes.length ? classes.map((c) => (
+              <span key={c} style={chipStyle(theme.blue)}>{c}</span>
+            )) : <span style={{ fontSize: 12, color: theme.muted }}>—</span>}
+          </div>
         </div>
+
+        {/* Details */}
+        {details.length > 0 && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+            background: theme.bg,
+            borderRadius: 12,
+            padding: "14px 16px",
+            marginBottom: 16,
+          }}>
+            {details.map(([icon, label, val]) => (
+              <div key={label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ fontSize: 10.5, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                  {icon} {label}
+                </span>
+                <span style={{ fontSize: 13.5, color: theme.text, fontWeight: 700 }}>
+                  {String(val)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Pushes the controls to the bottom so cards align */}
         <div style={{ flex: 1 }} />
@@ -160,31 +204,40 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
 export default function Exams() {
   const [exams, setExams] = useState([]);
   const [classOptions, setClassOptions] = useState([]);
+  const [subjectOptions, setSubjectOptions] = useState([]);
+  const [yearOptions, setYearOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addOpen, setAddOpen]       = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [marksExam, setMarksExam]   = useState(null);
   const [filter, setFilter]         = useState("All");
+  const [yearFilter, setYearFilter] = useState("All");
+  const [classFilter, setClassFilter] = useState("All");
   const [counts, setCounts]         = useState({});
 
   const STATUS_ENUM = { Scheduled: "SCHEDULED", Upcoming: "UPCOMING", Completed: "COMPLETED", Cancelled: "CANCELLED" };
 
   const toExamRow = (e) => ({
-    id: e.id, name: e.name, subject: e.subject,
-    class: e.className || "All", date: e.examDate, maxMarks: e.maxMarks,
-    duration: e.duration,
+    id: e.id, name: e.name,
+    academicYear: e.academicYear || "",
+    subjects: e.subjects || [],
+    classes: e.classes || [],
+    date: e.examDate, maxMarks: e.maxMarks ?? 100,
+    duration: e.duration, instructions: e.instructions,
     rawStatus: e.status, status: statusLabel(e.status),
   });
 
-  // ── Fetch (status filter runs on the backend) ──────────────
+  // ── Fetch — status, academic year & class all filter in the DB ──
   const fetchExams = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = filter === "All"
-        ? await examAPI.getAll()
-        : await examAPI.getByStatus(STATUS_ENUM[filter]);
+      const data = await examAPI.getAll({
+        status: filter === "All" ? undefined : STATUS_ENUM[filter],
+        academicYear: yearFilter === "All" ? undefined : yearFilter,
+        className: classFilter === "All" ? undefined : classFilter,
+      });
       setExams(data.map(toExamRow));
     } catch (err) {
       setError(err.message);
@@ -193,47 +246,63 @@ export default function Exams() {
     }
   };
 
+  // Tab counts reflect the active academic-year & class filters (status tallied per group).
   const refreshCounts = async () => {
-    const all = (await examAPI.getAll().catch(() => [])).map(toExamRow);
+    const data = await examAPI.getAll({
+      academicYear: yearFilter === "All" ? undefined : yearFilter,
+      className: classFilter === "All" ? undefined : classFilter,
+    }).catch(() => []);
     const c = {};
-    all.forEach((e) => { c[e.status] = (c[e.status] || 0) + 1; });
+    data.map(toExamRow).forEach((e) => { c[e.status] = (c[e.status] || 0) + 1; });
     setCounts(c);
   };
 
   const loadMeta = async () => {
-    const gradeData = await configAPI.getGrades().catch(() => []);
+    const [gradeData, subjectData, yearData] = await Promise.all([
+      configAPI.getGrades().catch(() => []),
+      configAPI.getSubjects().catch(() => []),
+      configAPI.getAcademicYears().catch(() => []),
+    ]);
     setClassOptions(gradeData.flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`)));
+    setSubjectOptions((subjectData || []).map(s => s.name));
+    setYearOptions((yearData || []).map(y => y.year));
   };
 
   const refresh = () => { fetchExams(); refreshCounts(); };
 
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMeta();
-    refreshCounts();
-    /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-fetch from the backend whenever the status filter changes.
+  // Re-fetch the list from the backend whenever any filter changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchExams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, yearFilter, classFilter]);
+
+  // Re-tally the tab counts whenever the academic-year or class filter changes.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearFilter, classFilter]);
 
   const toPayload = (formData, status = 'SCHEDULED') => ({
     name: formData.name,
-    subject: formData.subject,
-    className: formData.class,
-    examDate: formData.date,
-    maxMarks: Number(formData.maxMarks),
+    academicYear: formData.academicYear || null,
+    subjects: formData.subjects || [],
+    classes: formData.classes || [],
+    examDate: formData.date || null,
+    maxMarks: formData.maxMarks != null && formData.maxMarks !== "" ? Number(formData.maxMarks) : null,
     duration: formData.duration,
     instructions: formData.instructions,
     status,
   });
 
-  // ── Add exam ────────────────────────────────────────────────
+  // ── Add exam — one record noting its subjects & classes ─────
   const handleAdd = async (formData) => {
     try {
       await examAPI.create(toPayload(formData));
@@ -276,7 +345,8 @@ export default function Exams() {
 
   // ── Filter tabs ─────────────────────────────────────────────
   const FILTERS = ["All", "Scheduled", "Upcoming", "Completed", "Cancelled"];
-  const filtered = exams; // rows are already filtered by the backend
+  // All filtering (status, academic year, class) is done by the backend.
+  const filtered = exams;
 
   return (
     <div>
@@ -318,6 +388,32 @@ export default function Exams() {
         ))}
       </div>
 
+      {/* Academic year + class filters */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Academic Year</span>
+          <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} style={filterSelSt}>
+            <option value="All">All Years</option>
+            {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Class</span>
+          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} style={filterSelSt}>
+            <option value="All">All Classes</option>
+            {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        {(yearFilter !== "All" || classFilter !== "All") && (
+          <button
+            onClick={() => { setYearFilter("All"); setClassFilter("All"); }}
+            style={{ background: theme.card, color: theme.muted, border: `1px solid ${theme.border}`, borderRadius: 999, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       {loading && <LoadingSpinner message="Loading exams…" />}
       {error && <ErrorMessage message={error} onRetry={fetchExams} />}
 
@@ -347,10 +443,10 @@ export default function Exams() {
         ))}
 
       {addOpen && (
-        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} />
+        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} subjectOptions={subjectOptions} yearOptions={yearOptions} />
       )}
       {editTarget && (
-        <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} />
+        <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} subjectOptions={subjectOptions} yearOptions={yearOptions} />
       )}
       {marksExam && (
         <ExamMarks exam={marksExam} onClose={() => setMarksExam(null)} />

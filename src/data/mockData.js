@@ -61,6 +61,7 @@ export const CONFIG_SECTIONS = [
   { id: "profile",      label: "School Profile",    icon: "🏫" },
   { id: "grades",       label: "Grades & Sections", icon: "📚" },
   { id: "subjects",     label: "Subjects",          icon: "📖" },
+  { id: "academicYears", label: "Academic Years",   icon: "📆" },
   { id: "feeStructure", label: "Fee Structure",     icon: "💰" },
   { id: "templates",    label: "Templates",   icon: "🧾" },
   { id: "calendar",     label: "Academic Calendar", icon: "📅" },
@@ -80,6 +81,18 @@ export const CLASS_SECTIONS = [
   { id: "classes",    label: "Classes",    icon: "🏫" },
   { id: "timetable",  label: "Timetable",  icon: "🗓" },
   { id: "attendance", label: "Attendance", icon: "✅" },
+];
+
+// Sub-sections shown under the Syllabus module in the sidebar.
+export const SYLLABUS_SECTIONS = [
+  { id: "dashboard", label: "Dashboard",        icon: "📊" },
+  { id: "manage",    label: "Manage Syllabus",  icon: "📚" },
+];
+
+// Sub-sections shown under the Fees module in the sidebar.
+export const FEES_SECTIONS = [
+  { id: "list",      label: "Fee Records", icon: "💳" },
+  { id: "dashboard", label: "Dashboard",   icon: "📊" },
 ];
 
 export const MODULES = [

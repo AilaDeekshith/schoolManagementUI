@@ -44,12 +44,6 @@ const timeRange = (s, e) => {
   if (!s && !e) return "";
   return `${s ? fmtTime(s) : "—"}${e ? ` – ${fmtTime(e)}` : ""}`;
 };
-const fmtExamDate = (d) => {
-  if (!d) return "";
-  try { return new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); }
-  catch { return d; }
-};
-
 const BLANK = { subject: "", examDate: "", startTime: "", endTime: "", className: "", notes: "" };
 
 // ── Add / edit a paper ────────────────────────────────────────
@@ -116,17 +110,28 @@ export default function ExamTimetable() {
   const [examId, setExamId]     = useState("");
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses]   = useState([]);
+  const [years, setYears]       = useState([]);
+  const [yearFilter, setYearFilter]   = useState("All");
+  const [classFilter, setClassFilter] = useState("All");
   const [entries, setEntries]   = useState([]);
   const [loading, setLoading]   = useState(false);
   const [editing, setEditing]   = useState(null); // null | {} (new) | entry
 
   useEffect(() => {
-    examAPI.getAll().then(setExams).catch(() => {});
     configAPI.getSubjects().then((d) => setSubjects((d || []).map((s) => s.name))).catch(() => {});
+    configAPI.getAcademicYears().then((d) => setYears((d || []).map((y) => y.year))).catch(() => {});
     configAPI.getGrades()
       .then((grades) => setClasses((grades || []).flatMap((g) => (g.sections ?? []).map((s) => `${g.name}-${s.letter}`))))
       .catch(() => {});
   }, []);
+
+  // Exams are fetched from the backend, already filtered by the selected year/class.
+  useEffect(() => {
+    examAPI.getAll({
+      academicYear: yearFilter === "All" ? undefined : yearFilter,
+      className: classFilter === "All" ? undefined : classFilter,
+    }).then((d) => setExams(d || [])).catch(() => setExams([]));
+  }, [yearFilter, classFilter]);
 
   const loadEntries = useCallback((id) => {
     if (!id) { setEntries([]); return; }
@@ -143,6 +148,9 @@ export default function ExamTimetable() {
   }, [examId, loadEntries]);
 
   const selectedExam = exams.find((e) => String(e.id) === String(examId));
+  // Constrain the paper form to the exam's own subjects/classes (fall back to all configured).
+  const examSubjects = selectedExam?.subjects?.length ? selectedExam.subjects : subjects;
+  const examClasses  = selectedExam?.classes?.length ? selectedExam.classes : classes;
 
   const handleSave = async (data) => {
     try {
@@ -163,7 +171,7 @@ export default function ExamTimetable() {
   const groups = [];
   const idx = {};
   entries.forEach((e) => {
-    const key = e.className || selectedExam?.className || "All Classes";
+    const key = e.className || "All Classes";
     if (idx[key] == null) { idx[key] = groups.length; groups.push({ className: key, items: [] }); }
     groups[idx[key]].items.push(e);
   });
@@ -178,13 +186,29 @@ export default function ExamTimetable() {
         </div>
       </StickyHeader>
 
-      {/* Exam selector */}
+      {/* Filters + exam selector */}
       <div style={{ background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 14, padding: "16px 20px", marginBottom: 22, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Select Exam</div>
-        <select value={examId} onChange={(e) => { setExamId(e.target.value); setEditing(null); }} style={inp({ maxWidth: 360 })}>
-          <option value="">— Choose an exam —</option>
-          {exams.map((e) => <option key={e.id} value={e.id}>{e.name} · {e.className || "All"}</option>)}
-        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Academic Year</span>
+          <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setExamId(""); setEditing(null); }} style={inp({ width: "auto", fontWeight: 700 })}>
+            <option value="All">All Years</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Class</span>
+          <select value={classFilter} onChange={(e) => { setClassFilter(e.target.value); setExamId(""); setEditing(null); }} style={inp({ width: "auto", fontWeight: 700 })}>
+            <option value="All">All Classes</option>
+            {classes.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4 }}>Select Exam</span>
+          <select value={examId} onChange={(e) => { setExamId(e.target.value); setEditing(null); }} style={inp({ maxWidth: 360 })}>
+            <option value="">— Choose an exam —</option>
+            {exams.map((e) => <option key={e.id} value={e.id}>{e.name}{e.academicYear ? ` · ${e.academicYear}` : ""}{e.classes?.length ? ` · ${e.classes.length} class${e.classes.length === 1 ? "" : "es"}` : ""}</option>)}
+          </select>
+        </div>
         {selectedExam && (
           <span style={{ fontSize: 12.5, color: theme.muted }}>{entries.length} paper{entries.length !== 1 ? "s" : ""} scheduled</span>
         )}
@@ -202,8 +226,8 @@ export default function ExamTimetable() {
           {editing && (
             <PaperForm
               initial={editing}
-              subjects={subjects}
-              classes={classes}
+              subjects={examSubjects}
+              classes={examClasses}
               onSave={handleSave}
               onCancel={() => setEditing(null)}
             />
@@ -273,7 +297,7 @@ export default function ExamTimetable() {
 
           {selectedExam && (
             <div style={{ marginTop: 18, fontSize: 12, color: theme.muted }}>
-              Exam: <b>{selectedExam.name}</b> · Class {selectedExam.className || "All"} · created {fmtExamDate(selectedExam.examDate)}
+              Exam: <b>{selectedExam.name}</b>{selectedExam.classes?.length ? ` · Classes: ${selectedExam.classes.join(", ")}` : ""}{selectedExam.subjects?.length ? ` · Subjects: ${selectedExam.subjects.join(", ")}` : ""}
             </div>
           )}
         </>

@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
 import PageHeader from "../components/PageHeader";
-import StatCard from "../components/StatCard";
 import DataTable from "../components/DataTable";
 import CardWrapper from "../components/CardWrapper";
 import Badge from "../components/Badge";
@@ -59,10 +58,6 @@ const toRow = (f) => ({
 // ── Page ──────────────────────────────────────────────────────
 export default function Fees() {
   const [fees, setFees] = useState([]);
-  const [summary, setSummary] = useState({
-    totalCollected: 0,
-    totalOutstanding: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null); // row whose Collect was clicked
@@ -83,15 +78,8 @@ export default function Fees() {
     setLoading(true);
     setError(null);
     try {
-      const [feeData, summaryData] = await Promise.all([
-        feesAPI.search({ className, academicYear, status: statusFilter, name: debouncedSearch }),
-        feesAPI.getSummary(),
-      ]);
+      const feeData = await feesAPI.search({ className, academicYear, status: statusFilter, name: debouncedSearch });
       setFees(feeData.map(toRow));
-      setSummary({
-        totalCollected: Number(summaryData.totalCollected || 0),
-        totalOutstanding: Number(summaryData.totalOutstanding || 0),
-      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -103,16 +91,20 @@ export default function Fees() {
   // the full fee list is never loaded up front.
   useEffect(() => {
     (async () => {
-      const [grades, years, prof] = await Promise.all([
+      const [grades, cfgYears, prof] = await Promise.all([
         configAPI.getGrades().catch(() => []),
-        feesAPI.getAcademicYears().catch(() => []),
+        configAPI.getAcademicYears().catch(() => []),
         configAPI.getProfile().catch(() => ({})),
       ]);
       // Class options come from the configured grades & sections.
       const classNames = (grades || []).flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`));
-      const curAY = (prof?.academicYear || "").trim() || currentAcademicYear();
+      // Year options come only from Configuration → Academic Years.
+      const yearList = (cfgYears || []).map(y => y.year);
+      const activeYear = (cfgYears || []).find(y => y.active)?.year;
+      const profAY = (prof?.academicYear || "").trim();
+      const curAY = activeYear || (yearList.includes(profAY) ? profAY : "") || yearList[0] || profAY || currentAcademicYear();
       setClasses(classNames);
-      setAcademicYears(Array.from(new Set([curAY, ...(years || [])])).filter(Boolean));
+      setAcademicYears(Array.from(new Set([curAY, ...yearList])).filter(Boolean));
       setAcademicYear(curAY);
       setProfile(prof || {});
       if (classNames.length) setClassName(classNames[0]);
@@ -192,10 +184,6 @@ export default function Fees() {
       setRemindingAll(false);
     }
   };
-
-  // ── derived stats ──────────────────────────────────────────
-  const paidCount = fees.filter((f) => f.status === "Paid").length;
-  const overdueCount = fees.filter((f) => f.status === "Overdue").length;
 
   // ── table columns ──────────────────────────────────────────
   const columns = [
@@ -285,41 +273,6 @@ export default function Fees() {
         actionLabel={remindingAll ? "Sending…" : "Send Reminders"}
         onAction={remindingAll ? undefined : handleRemindAll}
       />
-
-      {/* Stat cards — values come from live API */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 14,
-          marginBottom: 28,
-        }}
-      >
-        <StatCard
-          label="Total Collected"
-          value={`₹${(summary.totalCollected / 1000).toFixed(1)}K`}
-          icon="💰"
-          color={theme.green}
-        />
-        <StatCard
-          label="Outstanding"
-          value={`₹${(summary.totalOutstanding / 1000).toFixed(1)}K`}
-          icon="⚠️"
-          color={theme.red}
-        />
-        <StatCard
-          label="Fully Paid"
-          value={`${paidCount} / ${fees.length}`}
-          icon="✅"
-          color={theme.blue}
-        />
-        <StatCard
-          label="Overdue"
-          value={overdueCount}
-          icon="🚨"
-          color={theme.accent}
-        />
-      </div>
 
       {/* Class + Academic Year + name search */}
       <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap", alignItems: "flex-end" }}>

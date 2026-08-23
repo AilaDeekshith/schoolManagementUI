@@ -1,9 +1,9 @@
 // components/Sidebar.jsx
 import { useState } from "react";
-import { MODULES, CONFIG_SECTIONS, EXAM_SECTIONS, CLASS_SECTIONS } from "../data/mockData";
+import { MODULES, CONFIG_SECTIONS, EXAM_SECTIONS, CLASS_SECTIONS, SYLLABUS_SECTIONS, FEES_SECTIONS } from "../data/mockData";
 
 // Modules that expand into sub-sections.
-const SUBMENUS = { configuration: CONFIG_SECTIONS, exams: EXAM_SECTIONS, classes: CLASS_SECTIONS };
+const SUBMENUS = { configuration: CONFIG_SECTIONS, exams: EXAM_SECTIONS, classes: CLASS_SECTIONS, syllabus: SYLLABUS_SECTIONS, fees: FEES_SECTIONS };
 
 // Icon background colour per module (subtle pill on active)
 const MODULE_ACCENT = {

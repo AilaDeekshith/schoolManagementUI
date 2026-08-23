@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { theme } from "../theme";
 
-export default function Modal({ title, onClose, children }) {
+export default function Modal({ title, onClose, children, width = 600 }) {
   useEffect(() => {
     const handler = e => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -28,7 +28,7 @@ export default function Modal({ title, onClose, children }) {
           border: `1px solid ${theme.border}`,
           borderRadius: 18,
           width: "100%",
-          maxWidth: 600,
+          maxWidth: width,
           maxHeight: "90vh",
           overflowY: "auto",
           boxShadow: "0 24px 80px #6C63FF22",

@@ -39,6 +39,68 @@ const Tag = ({ label, color = theme.blue }) => (
   <span style={{ background: color + "18", color, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>{label}</span>
 );
 
+// Capitalise an ENUM_LIKE token → "Enum like"
+const cap = s => (s ? s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, " ") : s);
+
+// ── filter pill (segmented control) ───────────────────────────
+function FilterPill({ active, onClick, label, count, color = theme.accent }) {
+  return (
+    <button onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 999,
+      border: `1.5px solid ${active ? color : theme.border}`,
+      background: active ? color : theme.card, color: active ? "#fff" : theme.muted,
+      fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all .15s",
+    }}>
+      {label}
+      <span style={{
+        fontSize: 11, fontWeight: 800, borderRadius: 999, padding: "0 7px", minWidth: 18, textAlign: "center",
+        background: active ? "rgba(255,255,255,0.25)" : theme.bg, color: active ? "#fff" : theme.muted,
+      }}>{count}</span>
+    </button>
+  );
+}
+
+// ── summary stat card ─────────────────────────────────────────
+function SummaryStat({ label, value, color, icon, wide }) {
+  return (
+    <div style={{
+      flex: wide ? "1 1 220px" : "1 1 150px", display: "flex", alignItems: "center", gap: 14,
+      padding: "16px 18px", background: theme.card, border: `1px solid ${theme.border}`,
+      borderRadius: 14, boxShadow: "0 1px 4px rgba(16,24,64,0.05)",
+    }}>
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{icon}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: wide ? 22 : 20, fontWeight: 900, color, whiteSpace: "nowrap" }}>{value}</div>
+        <div style={{ fontSize: 11, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: .5 }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Configured academic years (shared across dropdowns) ───────
+function useAcademicYears() {
+  const [years, setYears] = useState([]);
+  useEffect(() => {
+    configAPI.getAcademicYears()
+      .then(list => setYears((list || []).map(y => y.year)))
+      .catch(() => {});
+  }, []);
+  return years;
+}
+
+// Dropdown limited to the academic years configured in Configuration → Academic Years.
+// Keeps any pre-existing value that is no longer in the list so records aren't silently changed.
+function YearSelect({ value, onChange, required }) {
+  const years = useAcademicYears();
+  const opts = value && !years.includes(value) ? [value, ...years] : years;
+  return (
+    <select value={value || ""} onChange={onChange} required={required} style={inp()}>
+      <option value="">— Select Year —</option>
+      {opts.map(y => <option key={y} value={y}>{y}</option>)}
+    </select>
+  );
+}
+
 // ── Modal wrapper ─────────────────────────────────────────────
 function Modal({ title, onClose, children, width = 480 }) {
   return (
@@ -370,6 +432,45 @@ function GradesTab() {
 const SUBJECT_TYPES  = ["CORE", "ELECTIVE", "CO_CURRICULAR"];
 const SUBJECT_LABEL  = { CORE: "Core", ELECTIVE: "Elective", CO_CURRICULAR: "Co-curricular" };
 const SUBJECT_COLOR  = { CORE: theme.blue, ELECTIVE: theme.green, CO_CURRICULAR: theme.purple };
+const SUBJECT_ICON   = { CORE: "📘", ELECTIVE: "🧩", CO_CURRICULAR: "🎨" };
+
+function SubjectCard({ s, onEdit, onDelete }) {
+  const color = SUBJECT_COLOR[s.type] || theme.blue;
+  const [hover, setHover] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 14,
+        overflow: "hidden", display: "flex", flexDirection: "column",
+        boxShadow: hover ? "0 8px 24px rgba(16,24,64,0.12)" : "0 1px 4px rgba(16,24,64,0.05)",
+        transform: hover ? "translateY(-2px)" : "none", transition: "all .18s",
+      }}>
+      <div style={{ height: 4, background: color }} />
+      <div style={{ padding: "16px 16px 14px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: color + "18", color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+            {SUBJECT_ICON[s.type] || "📖"}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 800, color: theme.text, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 5, alignItems: "center", flexWrap: "wrap" }}>
+              <Tag label={SUBJECT_LABEL[s.type]} color={color} />
+              {s.code && <span style={{ fontSize: 11, color: theme.muted, fontFamily: "monospace", background: theme.bg, padding: "1px 7px", borderRadius: 5, border: `1px solid ${theme.border}` }}>{s.code}</span>}
+            </div>
+          </div>
+        </div>
+        {s.description && <div style={{ fontSize: 12.5, color: theme.muted, lineHeight: 1.5 }}>{s.description}</div>}
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${theme.border}`, paddingTop: 12 }}>
+          <Btn small variant="blue" style={{ flex: 1 }} onClick={onEdit}>✎ Edit</Btn>
+          <Btn small variant="danger" style={{ flex: 1 }} onClick={onDelete}>🗑 Delete</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SubjectModal({ initial, onSave, onClose }) {
   const [form, setForm] = useState({ name: "", code: "", type: "CORE", description: "", ...(initial ?? {}) });
@@ -408,9 +509,10 @@ function SubjectsTab() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [modal, setModal]       = useState(null); // null | { mode: 'add'|'edit', data: {} }
+  const [filter, setFilter]     = useState("ALL");
 
   const load = async () => { setLoading(true); setSubjects(await configAPI.getSubjects().catch(() => [])); setLoading(false); };
-  useEffect(() => { 
+  useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load(); }, []);
 
@@ -428,31 +530,135 @@ function SubjectsTab() {
 
   if (loading) return <div style={{ color: theme.muted }}>Loading…</div>;
 
+  const counts = SUBJECT_TYPES.reduce((a, t) => { a[t] = subjects.filter(s => s.type === t).length; return a; }, {});
+  const shown  = filter === "ALL" ? subjects : subjects.filter(s => s.type === filter);
+
   return (
     <>
       <ListHeader title="Subjects" count={subjects.length} onAdd={() => setModal({ mode: "add", data: {} })} addLabel="+ Add Subject" />
       {subjects.length === 0 ? <Empty message="No subjects yet — click Add Subject to get started" /> : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {subjects.map(s => (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: SUBJECT_COLOR[s.type] + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>📖</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{s.name}</div>
-                <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
-                  {s.code && <span style={{ fontSize: 11, color: theme.muted, fontFamily: "monospace", background: theme.bg, padding: "1px 6px", borderRadius: 4 }}>{s.code}</span>}
-                  <Tag label={SUBJECT_LABEL[s.type]} color={SUBJECT_COLOR[s.type]} />
-                </div>
-                {s.description && <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>{s.description}</div>}
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <Btn small variant="blue" onClick={() => setModal({ mode: "edit", data: s })}>Edit</Btn>
-                <Btn small variant="danger" onClick={() => handleDelete(s.id)}>Delete</Btn>
-              </div>
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+            <FilterPill active={filter === "ALL"} onClick={() => setFilter("ALL")} label="All" count={subjects.length} color={theme.accent} />
+            {SUBJECT_TYPES.map(t => (
+              <FilterPill key={t} active={filter === t} onClick={() => setFilter(t)} label={SUBJECT_LABEL[t]} count={counts[t]} color={SUBJECT_COLOR[t]} />
+            ))}
+          </div>
+          {shown.length === 0 ? (
+            <Empty message={`No ${SUBJECT_LABEL[filter]?.toLowerCase() || ""} subjects.`} />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+              {shown.map(s => (
+                <SubjectCard key={s.id} s={s} onEdit={() => setModal({ mode: "edit", data: s })} onDelete={() => handleDelete(s.id)} />
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
       {modal && <SubjectModal initial={modal.mode === "edit" ? modal.data : null} onSave={handleSave} onClose={() => setModal(null)} />}
+    </>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// TAB — Academic Years
+// ══════════════════════════════════════════════════════════════
+function AcademicYearModal({ initial, onSave, onClose }) {
+  const blank = { year: "", startDate: "", endDate: "", active: false };
+  const [form, setForm] = useState({ ...blank, ...(initial ?? {}) });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const handleSubmit = async e => {
+    e.preventDefault();
+    await onSave({ ...form, startDate: form.startDate || null, endDate: form.endDate || null });
+    onClose();
+  };
+  return (
+    <Modal title={initial ? "Edit Academic Year" : "Add Academic Year"} onClose={onClose}>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Field label="Academic Year *">
+          <input required value={form.year} onChange={e => set("year", e.target.value)} placeholder="e.g. 2024-25" style={inp()} />
+        </Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Field label="Start Date"><input type="date" value={form.startDate || ""} onChange={e => set("startDate", e.target.value)} style={inp()} /></Field>
+          <Field label="End Date"><input type="date" value={form.endDate || ""} onChange={e => set("endDate", e.target.value)} style={inp()} /></Field>
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: theme.text, fontWeight: 600, cursor: "pointer" }}>
+          <input type="checkbox" checked={!!form.active} onChange={e => set("active", e.target.checked)} />
+          Set as current academic year
+        </label>
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <Btn type="submit" variant="primary" style={{ flex: 1 }}>{initial ? "Update" : "Add Year"}</Btn>
+          <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AcademicYearsTab() {
+  const [years, setYears]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal]   = useState(null);
+
+  const load = async () => { setLoading(true); setYears(await configAPI.getAcademicYears().catch(() => [])); setLoading(false); };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load(); }, []);
+
+  const handleSave = async form => {
+    if (modal.mode === "edit") await configAPI.updateAcademicYear(modal.data.id, form).catch(e => toast.error(e.message));
+    else                       await configAPI.createAcademicYear(form).catch(e => toast.error(e.message));
+    load();
+  };
+
+  const handleDelete = async id => {
+    if (!window.confirm("Delete this academic year?")) return;
+    await configAPI.deleteAcademicYear(id).catch(e => toast.error(e.message));
+    load();
+  };
+
+  const fmt = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : null;
+
+  if (loading) return <div style={{ color: theme.muted }}>Loading…</div>;
+
+  return (
+    <>
+      <ListHeader title="Academic Years" count={years.length} onAdd={() => setModal({ mode: "add", data: {} })} addLabel="+ Add Academic Year" />
+      {years.length === 0 ? (
+        <Empty message="No academic years yet — add one so it appears in every academic-year dropdown" />
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+          {years.map(y => {
+            const color = y.active ? theme.green : theme.accent;
+            return (
+              <div key={y.id} style={{ background: theme.card, border: `1px solid ${y.active ? theme.green + "55" : theme.border}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 4px rgba(16,24,64,0.05)" }}>
+                <div style={{ height: 4, background: color }} />
+                <div style={{ padding: "16px 16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: color + "18", color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>📆</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontWeight: 800, color: theme.text, fontSize: 16 }}>{y.year}</span>
+                        {y.active && <Tag label="Current" color={theme.green} />}
+                      </div>
+                      {(y.startDate || y.endDate) && (
+                        <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>
+                          {fmt(y.startDate) || "—"} → {fmt(y.endDate) || "—"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, borderTop: `1px solid ${theme.border}`, paddingTop: 12 }}>
+                    <Btn small variant="blue" style={{ flex: 1 }} onClick={() => setModal({ mode: "edit", data: { ...y, startDate: y.startDate ?? "", endDate: y.endDate ?? "" } })}>✎ Edit</Btn>
+                    <Btn small variant="danger" style={{ flex: 1 }} onClick={() => handleDelete(y.id)}>🗑 Delete</Btn>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {modal && <AcademicYearModal initial={modal.mode === "edit" ? modal.data : null} onSave={handleSave} onClose={() => setModal(null)} />}
     </>
   );
 }
@@ -475,7 +681,7 @@ function FeeModal({ initial, onSave, onClose }) {
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Grade / Class *"><input required value={form.gradeName} onChange={e => set("gradeName", e.target.value)} placeholder="e.g. Grade 10 or All" style={inp()} /></Field>
-          <Field label="Academic Year *"><input required value={form.academicYear} onChange={e => set("academicYear", e.target.value)} placeholder="2024-25" style={inp()} /></Field>
+          <Field label="Academic Year *"><YearSelect value={form.academicYear} onChange={e => set("academicYear", e.target.value)} required /></Field>
           <Field label="Amount (₹) *"><input required type="number" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="e.g. 45000" style={inp()} /></Field>
           <Field label="Category">
             <select value={form.feeCategory} onChange={e => set("feeCategory", e.target.value)} style={inp()}>
@@ -524,37 +730,60 @@ function FeeStructureTab() {
   if (loading) return <div style={{ color: theme.muted }}>Loading…</div>;
 
   const grouped = items.reduce((acc, i) => { (acc[i.gradeName] = acc[i.gradeName] || []).push(i); return acc; }, {});
+  const grandTotal = items.reduce((s, i) => s + Number(i.amount), 0);
 
   return (
     <>
       <ListHeader title="Fee Structure" count={items.length} onAdd={() => setModal({ mode: "add", data: {} })} addLabel="+ Add Fee Entry" />
       {items.length === 0 ? <Empty message="No fee structure defined — click Add Fee Entry to get started" /> : (
-        Object.entries(grouped).map(([grade, entries]) => (
-          <div key={grade} style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: theme.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 10 }}>
-              🎒 {grade}
-              <span style={{ fontSize: 12, color: theme.green, fontWeight: 700, background: theme.green + "12", padding: "2px 10px", borderRadius: 20 }}>
-                Total ₹{entries.reduce((s, i) => s + Number(i.amount), 0).toLocaleString()}
-              </span>
-            </div>
-            {entries.map(i => (
-              <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10, marginBottom: 6 }}>
-                <span style={{ fontSize: 20 }}>{FEE_ICON[i.feeCategory]}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{i.feeCategory.charAt(0) + i.feeCategory.slice(1).toLowerCase()}</span>
-                    <Tag label={i.frequency.charAt(0) + i.frequency.slice(1).toLowerCase()} color={FEE_COLOR[i.feeCategory]} />
-                    <span style={{ fontSize: 11, color: theme.muted }}>{i.academicYear}</span>
-                  </div>
-                  {i.description && <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>{i.description}</div>}
-                </div>
-                <div style={{ fontWeight: 900, fontSize: 17, color: theme.green, marginRight: 8 }}>₹{Number(i.amount).toLocaleString()}</div>
-                <Btn small variant="blue" onClick={() => setModal({ mode: "edit", data: i })}>Edit</Btn>
-                <Btn small variant="danger" onClick={() => handleDelete(i.id)}>Delete</Btn>
-              </div>
-            ))}
+        <>
+          {/* Summary strip */}
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
+            <SummaryStat wide label="Grand Total" value={`₹${grandTotal.toLocaleString()}`} color={theme.green} icon="💰" />
+            <SummaryStat label="Grades / Classes" value={Object.keys(grouped).length} color={theme.blue} icon="🎒" />
+            <SummaryStat label="Fee Entries" value={items.length} color={theme.purple} icon="🧾" />
           </div>
-        ))
+
+          {Object.entries(grouped).map(([grade, entries]) => {
+            const gradeTotal = entries.reduce((s, i) => s + Number(i.amount), 0);
+            return (
+              <div key={grade} style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 16, boxShadow: "0 1px 4px rgba(16,24,64,0.05)" }}>
+                {/* Grade header */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 18px", background: theme.bg, borderBottom: `1px solid ${theme.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800, color: theme.text, fontSize: 14 }}>
+                    <span style={{ fontSize: 18 }}>🎒</span> {grade}
+                    <span style={{ fontSize: 11, color: theme.muted, fontWeight: 600 }}>· {entries.length} item{entries.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <span style={{ fontSize: 13, color: theme.green, fontWeight: 800, background: theme.green + "14", padding: "4px 12px", borderRadius: 20 }}>
+                    ₹{gradeTotal.toLocaleString()}
+                  </span>
+                </div>
+                {/* Entries */}
+                {entries.map((i, idx) => {
+                  const color = FEE_COLOR[i.feeCategory] || theme.muted;
+                  return (
+                    <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px", borderBottom: idx === entries.length - 1 ? "none" : `1px solid ${theme.border}66` }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{FEE_ICON[i.feeCategory]}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{cap(i.feeCategory)}</span>
+                          <Tag label={cap(i.frequency)} color={color} />
+                          <span style={{ fontSize: 11, color: theme.muted }}>{i.academicYear}</span>
+                        </div>
+                        {i.description && <div style={{ fontSize: 12, color: theme.muted, marginTop: 2 }}>{i.description}</div>}
+                      </div>
+                      <div style={{ fontWeight: 900, fontSize: 17, color: theme.text }}>₹{Number(i.amount).toLocaleString()}</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Btn small variant="blue" onClick={() => setModal({ mode: "edit", data: i })}>Edit</Btn>
+                        <Btn small variant="danger" onClick={() => handleDelete(i.id)}>Delete</Btn>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </>
       )}
       {modal && <FeeModal initial={modal.mode === "edit" ? modal.data : null} onSave={handleSave} onClose={() => setModal(null)} />}
     </>
@@ -581,7 +810,7 @@ function HolidayModal({ initial, onSave, onClose }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Date *"><input required type="date" value={form.date} onChange={e => set("date", e.target.value)} style={inp()} /></Field>
           <Field label="End Date (optional)"><input type="date" value={form.endDate} onChange={e => set("endDate", e.target.value)} style={inp()} /></Field>
-          <Field label="Academic Year"><input value={form.academicYear} onChange={e => set("academicYear", e.target.value)} placeholder="2024-25" style={inp()} /></Field>
+          <Field label="Academic Year"><YearSelect value={form.academicYear} onChange={e => set("academicYear", e.target.value)} /></Field>
         </div>
         <Field label="Description"><input value={form.description} onChange={e => set("description", e.target.value)} style={inp()} /></Field>
         <Field label="Type">
@@ -607,23 +836,33 @@ function CalendarTab() {
   const [items, setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal]   = useState(null);
+  const [filter, setFilter] = useState("ALL");
+  const [yearFilter, setYearFilter] = useState(""); // "" = all configured years
+  const years = useAcademicYears();
 
-  const load = async () => { setLoading(true); setItems(await configAPI.getHolidays().catch(() => [])); setLoading(false); };
-  useEffect(() => { 
+  // Academic-year filtering runs in the DB; the type filter below is categorical.
+  const load = async (year) => { setLoading(true); setItems(await configAPI.getHolidays(year || undefined).catch(() => [])); setLoading(false); };
+  useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    load(); }, []);
+    load(yearFilter);
+  }, [yearFilter]);
 
   const handleSave = async form => {
     if (modal.mode === "edit") await configAPI.updateHoliday(modal.data.id, form).catch(e => toast.error(e.message));
     else                       await configAPI.createHoliday(form).catch(e => toast.error(e.message));
-    load();
+    load(yearFilter);
   };
 
-  const handleDelete = async id => { if (!window.confirm("Delete?")) return; await configAPI.deleteHoliday(id); load(); };
+  const handleDelete = async id => { if (!window.confirm("Delete?")) return; await configAPI.deleteHoliday(id); load(yearFilter); };
 
   if (loading) return <div style={{ color: theme.muted }}>Loading…</div>;
 
-  const byMonth = items.reduce((acc, h) => {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const counts   = HOLIDAY_TYPES.reduce((a, t) => { a[t] = items.filter(h => h.type === t).length; return a; }, {});
+  const upcoming = items.filter(h => (h.endDate || h.date) >= todayStr).length;
+  const shown    = filter === "ALL" ? items : items.filter(h => h.type === filter);
+
+  const byMonth = shown.slice().sort((a, b) => a.date.localeCompare(b.date)).reduce((acc, h) => {
     const m = new Date(h.date + "T00:00:00").toLocaleString("default", { month: "long", year: "numeric" });
     (acc[m] = acc[m] || []).push(h);
     return acc;
@@ -632,33 +871,84 @@ function CalendarTab() {
   return (
     <>
       <ListHeader title="Academic Calendar" count={items.length} onAdd={() => setModal({ mode: "add", data: {} })} addLabel="+ Add Event" />
-      {items.length === 0 ? <Empty message="No events yet — click Add Event to get started" /> : (
-        Object.entries(byMonth).map(([month, entries]) => (
-          <div key={month} style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: theme.muted, marginBottom: 10, letterSpacing: 1, textTransform: "uppercase" }}>{month}</div>
-            {entries.map(h => (
-              <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10, marginBottom: 6 }}>
-                <div style={{ textAlign: "center", flexShrink: 0, width: 42 }}>
-                  <div style={{ fontSize: 22 }}>{HOLIDAY_ICON[h.type]}</div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: HOLIDAY_COLOR[h.type] }}>
-                    {new Date(h.date + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{h.name}</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
-                    <Tag label={HOLIDAY_LABEL[h.type]} color={HOLIDAY_COLOR[h.type]} />
-                    {h.endDate && <span style={{ fontSize: 11, color: theme.muted }}>→ {new Date(h.endDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>}
-                    {h.academicYear && <span style={{ fontSize: 11, color: theme.muted }}>{h.academicYear}</span>}
-                  </div>
-                  {h.description && <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>{h.description}</div>}
-                </div>
-                <Btn small variant="blue" onClick={() => setModal({ mode: "edit", data: { ...h, date: h.date, endDate: h.endDate ?? "" } })}>Edit</Btn>
-                <Btn small variant="danger" onClick={() => handleDelete(h.id)}>Delete</Btn>
-              </div>
+
+      {/* Academic year filter (fetched from the DB) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .4 }}>Academic Year</span>
+        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{ ...inp(), width: "auto", fontWeight: 700 }}>
+          <option value="">All Years</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {items.length === 0 ? <Empty message={yearFilter ? `No events for ${yearFilter}` : "No events yet — click Add Event to get started"} /> : (
+        <>
+          {/* Summary strip */}
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            <SummaryStat label="Total Events" value={items.length} color={theme.accent} icon="📅" />
+            <SummaryStat label="Upcoming" value={upcoming} color={theme.green} icon="⏳" />
+            <SummaryStat label="Past" value={items.length - upcoming} color={theme.muted} icon="✅" />
+          </div>
+
+          {/* Type filter */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+            <FilterPill active={filter === "ALL"} onClick={() => setFilter("ALL")} label="All" count={items.length} color={theme.accent} />
+            {HOLIDAY_TYPES.map(t => (
+              <FilterPill key={t} active={filter === t} onClick={() => setFilter(t)} label={HOLIDAY_LABEL[t]} count={counts[t]} color={HOLIDAY_COLOR[t]} />
             ))}
           </div>
-        ))
+
+          {shown.length === 0 ? (
+            <Empty message="No events of this type." />
+          ) : (
+            Object.entries(byMonth).map(([month, entries]) => (
+              <div key={month} style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 16, boxShadow: "0 1px 4px rgba(16,24,64,0.05)" }}>
+                {/* Month header */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: theme.bg, borderBottom: `1px solid ${theme.border}` }}>
+                  <span style={{ fontSize: 16 }}>📆</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: theme.text, letterSpacing: .3 }}>{month}</span>
+                  <span style={{ fontSize: 11, color: theme.muted, fontWeight: 600 }}>· {entries.length} event{entries.length !== 1 ? "s" : ""}</span>
+                </div>
+                {/* Events */}
+                {entries.map((h, idx) => {
+                  const color = HOLIDAY_COLOR[h.type] || theme.muted;
+                  const d = new Date(h.date + "T00:00:00");
+                  const past = (h.endDate || h.date) < todayStr;
+                  return (
+                    <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 18px", opacity: past ? 0.72 : 1, borderBottom: idx === entries.length - 1 ? "none" : `1px solid ${theme.border}66` }}>
+                      {/* Date badge */}
+                      <div style={{ width: 52, flexShrink: 0, textAlign: "center", background: color + "15", border: `1px solid ${color}33`, borderRadius: 10, padding: "6px 0" }}>
+                        <div style={{ fontSize: 19, fontWeight: 900, color, lineHeight: 1.1 }}>{d.getDate()}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color, textTransform: "uppercase" }}>{d.toLocaleString("default", { month: "short" })}</div>
+                      </div>
+                      {/* Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 15 }}>{HOLIDAY_ICON[h.type]}</span>
+                          <span style={{ fontWeight: 700, color: theme.text, fontSize: 14 }}>{h.name}</span>
+                          {!past && (h.endDate || h.date) === todayStr && (
+                            <span style={{ fontSize: 10, fontWeight: 800, color: theme.green, background: theme.green + "18", border: `1px solid ${theme.green}33`, borderRadius: 20, padding: "1px 8px" }}>TODAY</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginTop: 5, alignItems: "center", flexWrap: "wrap" }}>
+                          <Tag label={HOLIDAY_LABEL[h.type]} color={color} />
+                          {h.endDate && <span style={{ fontSize: 11, color: theme.muted }}>→ {new Date(h.endDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>}
+                          {h.academicYear && <span style={{ fontSize: 11, color: theme.muted }}>{h.academicYear}</span>}
+                        </div>
+                        {h.description && <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>{h.description}</div>}
+                      </div>
+                      {/* Actions */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Btn small variant="blue" onClick={() => setModal({ mode: "edit", data: { ...h, date: h.date, endDate: h.endDate ?? "" } })}>Edit</Btn>
+                        <Btn small variant="danger" onClick={() => handleDelete(h.id)}>Delete</Btn>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </>
       )}
       {modal && <HolidayModal initial={modal.mode === "edit" ? modal.data : null} onSave={handleSave} onClose={() => setModal(null)} />}
     </>
@@ -1213,6 +1503,7 @@ const SECTION_META = {
   profile:      { label: "School Profile",    icon: "🏫" },
   grades:       { label: "Grades & Sections", icon: "📚" },
   subjects:     { label: "Subjects",          icon: "📖" },
+  academicYears: { label: "Academic Years",   icon: "📆" },
   feeStructure: { label: "Fee Structure",     icon: "💰" },
   templates:    { label: "Templates",         icon: "🧾" },
   calendar:     { label: "Academic Calendar", icon: "📅" },
@@ -1224,6 +1515,7 @@ export default function Configuration({ section = "profile", onProfileSaved }) {
     profile:      <ProfileTab onProfileSaved={onProfileSaved} />,
     grades:       <GradesTab />,
     subjects:     <SubjectsTab />,
+    academicYears: <AcademicYearsTab />,
     feeStructure: <FeeStructureTab />,
     templates:    <ReceiptTemplateTab />,
     calendar:     <CalendarTab />,

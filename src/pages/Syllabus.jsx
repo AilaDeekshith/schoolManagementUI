@@ -382,7 +382,13 @@ function TopicCard({ topic, index, isFirst, isLast, onStatusCycle, onKeyToggle, 
 function SyllabusModal({ grades, configSubjects, existingSubjectNames, initial, onSave, onClose }) {
   const [form, setForm] = useState({ ...blankSyl, ...(initial || {}) });
   const [saving, setSaving] = useState(false);
+  const [years, setYears] = useState([]);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Academic years come from Configuration → Academic Years.
+  useEffect(() => {
+    configAPI.getAcademicYears().then(list => setYears((list || []).map(y => y.year))).catch(() => {});
+  }, []);
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -393,7 +399,8 @@ function SyllabusModal({ grades, configSubjects, existingSubjectNames, initial, 
     finally { setSaving(false); }
   };
 
-  const YEARS = ["2023-24", "2024-25", "2025-26", "2026-27"];
+  // Keep any pre-existing value even if it's no longer a configured year.
+  const YEARS = form.academicYear && !years.includes(form.academicYear) ? [form.academicYear, ...years] : years;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(3px)" }}
@@ -515,11 +522,13 @@ export default function Syllabus() {
   // Config data
   const [grades, setGrades]             = useState([]);
   const [configSubjects, setConfigSubjects] = useState([]);
+  const [years, setYears]               = useState([]);
 
   // Syllabus data
   const [syllabi, setSyllabi]           = useState([]);   // for selected grade
   const [selected, setSelected]         = useState(null); // full syllabus object
   const [selectedGrade, setSelectedGrade] = useState(null);
+  const [selectedYear, setSelectedYear] = useState("");   // "" = all configured years
 
   // UI
   const [loading, setLoading]           = useState(true);
@@ -528,20 +537,10 @@ export default function Syllabus() {
   const [modal, setModal]               = useState(null); // null | { mode:"add"|"edit", data:{} }
   const [search, setSearch]             = useState("");
 
-  // ── Load config (grades + subjects) ────────────────────────────────
-  useEffect(() => {
-    Promise.allSettled([configAPI.getGrades(), configAPI.getSubjects()])
-      .then(([g, s]) => {
-        if (g.status === "fulfilled") setGrades(g.value);
-        if (s.status === "fulfilled") setConfigSubjects(s.value);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  // ── Load syllabi for selected grade ────────────────────────────────
-  const loadSyllabi = useCallback(async (grade) => {
+  // ── Load syllabi for a grade + academic year (filtered in the DB) ───
+  const loadSyllabi = useCallback(async (grade, year) => {
     setSyllabusLoading(true);
-    const data = await syllabusAPI.getByGrade(grade).catch(() => []);
+    const data = await syllabusAPI.getFiltered({ grade, year: year || undefined }).catch(() => []);
     setSyllabi(data);
     setSyllabusLoading(false);
   }, []);
@@ -551,8 +550,35 @@ export default function Syllabus() {
     setSelected(null);
     setSearch("");
     setShowAddTopic(false);
-    loadSyllabi(grade);
+    loadSyllabi(grade, selectedYear);
   };
+
+  const selectYear = year => {
+    setSelectedYear(year);
+    setSelected(null);
+    setSearch("");
+    setShowAddTopic(false);
+    if (selectedGrade) loadSyllabi(selectedGrade, year);
+  };
+
+  // ── Load config (grades + subjects), then default to a random grade ─
+  useEffect(() => {
+    configAPI.getAcademicYears().then(list => setYears((list || []).map(y => y.year))).catch(() => {});
+    Promise.allSettled([configAPI.getGrades(), configAPI.getSubjects()])
+      .then(([g, s]) => {
+        if (s.status === "fulfilled") setConfigSubjects(s.value);
+        if (g.status === "fulfilled") {
+          setGrades(g.value);
+          // Pick a random grade as the initial default selection.
+          if (g.value.length > 0) {
+            const randomGrade = g.value[Math.floor(Math.random() * g.value.length)];
+            selectGrade(randomGrade.name);
+          }
+        }
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectSyllabus = syl => {
     setSelected(syl);
@@ -566,15 +592,17 @@ export default function Syllabus() {
     const fresh = await syllabusAPI.getById(selected.id).catch(() => null);
     if (fresh) setSelected(fresh);
     // also refresh the sidebar list
-    loadSyllabi(selectedGrade);
+    loadSyllabi(selectedGrade, selectedYear);
   };
 
   // ── Syllabus CRUD handlers ─────────────────────────────────────────
   const handleCreateSyllabus = async data => {
     await syllabusAPI.create(data);
-    await loadSyllabi(data.gradeName);
-    // auto-select the new one
-    const all = await syllabusAPI.getByGrade(data.gradeName).catch(() => []);
+    // Align the active filters with the created syllabus so it's visible & selectable.
+    setSelectedGrade(data.gradeName);
+    if (selectedYear && selectedYear !== data.academicYear) setSelectedYear("");
+    const yearFilter = (!selectedYear || selectedYear === data.academicYear) ? selectedYear : "";
+    const all = await syllabusAPI.getFiltered({ grade: data.gradeName, year: yearFilter || undefined }).catch(() => []);
     setSyllabi(all);
     const newSyl = all.find(s => s.subjectName === data.subjectName && s.academicYear === data.academicYear);
     if (newSyl) setSelected(newSyl);
@@ -589,7 +617,7 @@ export default function Syllabus() {
     if (!window.confirm(`Delete the ${selected.subjectName} syllabus for ${selected.gradeName}? All topics and references will be lost.`)) return;
     await syllabusAPI.delete(selected.id);
     setSelected(null);
-    loadSyllabi(selectedGrade);
+    loadSyllabi(selectedGrade, selectedYear);
   };
 
   // ── Topic handlers ─────────────────────────────────────────────────
@@ -676,9 +704,44 @@ export default function Syllabus() {
             </div>
           </div>
         </div>
-        <Btn variant="primary" onClick={() => setModal({ mode: "add", data: {} })} disabled={grades.length === 0}>
-          + New Syllabus
-        </Btn>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Grade dropdown */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .6 }}>Grade</span>
+            <select
+              value={selectedGrade || ""}
+              onChange={e => selectGrade(e.target.value)}
+              disabled={grades.length === 0}
+              style={{
+                padding: "9px 14px", borderRadius: 10, border: `1.5px solid ${TEAL_B}`,
+                background: TEAL_L, color: TEAL, fontSize: 13, fontWeight: 800,
+                outline: "none", cursor: grades.length === 0 ? "not-allowed" : "pointer",
+                fontFamily: "'DM Sans',sans-serif", minWidth: 150,
+              }}>
+              <option value="" disabled>— Select Grade —</option>
+              {grades.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+            </select>
+          </div>
+          {/* Academic year filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: .6 }}>Year</span>
+            <select
+              value={selectedYear}
+              onChange={e => selectYear(e.target.value)}
+              style={{
+                padding: "9px 14px", borderRadius: 10, border: `1.5px solid ${TEAL_B}`,
+                background: TEAL_L, color: TEAL, fontSize: 13, fontWeight: 800,
+                outline: "none", cursor: "pointer",
+                fontFamily: "'DM Sans',sans-serif", minWidth: 130,
+              }}>
+              <option value="">All Years</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <Btn variant="primary" onClick={() => setModal({ mode: "add", data: { gradeName: selectedGrade } })} disabled={grades.length === 0}>
+            + New Syllabus
+          </Btn>
+        </div>
       </div>
 
       {/* ── Two-panel body ─────────────────────────────────────────── */}
@@ -686,84 +749,71 @@ export default function Syllabus() {
 
         {/* ── LEFT PANEL: Grade + Subject navigator ─────────────── */}
         <div style={{
-          width: 240, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4,
-          overflowY: "auto",
+          width: 248, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4,
+          overflowY: "auto", background: theme.surface, border: `1px solid ${theme.border}`,
+          borderRadius: 14, padding: 14, boxShadow: "0 1px 4px rgba(16,24,64,0.05)",
         }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: theme.muted, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Grades</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: theme.muted, letterSpacing: 1.5, textTransform: "uppercase" }}>
+              Subjects{selectedGrade ? ` · ${selectedGrade}` : ""}
+            </span>
+            {selectedGrade && !syllabusLoading && (
+              <span style={{ background: TEAL, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>
+                {syllabi.length}
+              </span>
+            )}
+          </div>
 
           {grades.length === 0 ? (
             <div style={{ fontSize: 12, color: theme.muted, padding: "8px 0" }}>
               No grades configured — go to <strong>Configuration → Grades</strong>
             </div>
+          ) : !selectedGrade ? (
+            <div style={{ fontSize: 12, color: theme.muted, padding: "8px 0" }}>
+              Select a grade above to see its subjects.
+            </div>
           ) : (
-            grades.map(g => {
-              const isGrade = selectedGrade === g.name;
-              const gradeCount = isGrade ? syllabi.length : null;
-              return (
-                <div key={g.id}>
-                  {/* Grade button */}
-                  <button onClick={() => selectGrade(g.name)} style={{
-                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "9px 12px", borderRadius: 9, border: `1px solid ${isGrade ? TEAL_B : theme.border}`,
-                    background: isGrade ? TEAL_L : "#fff", color: isGrade ? TEAL : theme.text,
-                    fontWeight: isGrade ? 800 : 500, fontSize: 13, cursor: "pointer",
-                    fontFamily: "'DM Sans',sans-serif", transition: "all .15s", marginBottom: 3,
-                  }}>
-                    <span>{g.name}</span>
-                    {isGrade && gradeCount !== null && (
-                      <span style={{ background: TEAL, color: "#fff", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>
-                        {gradeCount}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {syllabusLoading ? (
+                <div style={{ fontSize: 11, color: theme.muted, padding: "4px 8px" }}>Loading…</div>
+              ) : syllabi.length === 0 ? (
+                <div style={{ fontSize: 11, color: theme.muted, padding: "4px 8px" }}>No syllabi yet</div>
+              ) : (
+                syllabi.map(syl => {
+                  const isSel = selected?.id === syl.id;
+                  const done  = (syl.topics || []).filter(t => t.status === "COMPLETED").length;
+                  const total = (syl.topics || []).length;
+                  return (
+                    <button key={syl.id} onClick={() => selectSyllabus(syl)} style={{
+                      width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 12px", borderRadius: 9,
+                      border: `1px solid ${isSel ? TEAL_B : theme.border}`,
+                      background: isSel ? "#E6FFFA" : "#fff",
+                      color: isSel ? TEAL : theme.text,
+                      fontWeight: isSel ? 800 : 600, fontSize: 13, cursor: "pointer",
+                      fontFamily: "'DM Sans',sans-serif", textAlign: "left", transition: "all .15s",
+                    }}>
+                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {syl.subjectName}
                       </span>
-                    )}
-                  </button>
-
-                  {/* Subjects for selected grade */}
-                  {isGrade && (
-                    <div style={{ paddingLeft: 10, marginBottom: 8, display: "flex", flexDirection: "column", gap: 2 }}>
-                      {syllabusLoading ? (
-                        <div style={{ fontSize: 11, color: theme.muted, padding: "4px 8px" }}>Loading…</div>
-                      ) : syllabi.length === 0 ? (
-                        <div style={{ fontSize: 11, color: theme.muted, padding: "4px 8px" }}>No syllabi yet</div>
-                      ) : (
-                        syllabi.map(syl => {
-                          const isSel = selected?.id === syl.id;
-                          const done  = (syl.topics || []).filter(t => t.status === "COMPLETED").length;
-                          const total = (syl.topics || []).length;
-                          return (
-                            <button key={syl.id} onClick={() => selectSyllabus(syl)} style={{
-                              width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                              padding: "8px 10px", borderRadius: 8,
-                              border: `1px solid ${isSel ? TEAL_B : theme.border}`,
-                              background: isSel ? "#E6FFFA" : "#FAFAFA",
-                              color: isSel ? TEAL : theme.text,
-                              fontWeight: isSel ? 700 : 500, fontSize: 12, cursor: "pointer",
-                              fontFamily: "'DM Sans',sans-serif", textAlign: "left",
-                            }}>
-                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {syl.subjectName}
-                              </span>
-                              {total > 0 && (
-                                <span style={{ fontSize: 10, color: done === total ? "#10B981" : theme.muted, fontWeight: 600, flexShrink: 0 }}>
-                                  {done}/{total}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })
+                      {total > 0 && (
+                        <span style={{ fontSize: 10, color: done === total ? "#10B981" : theme.muted, fontWeight: 700, flexShrink: 0 }}>
+                          {done}/{total}
+                        </span>
                       )}
-                      <button onClick={() => setModal({ mode: "add", data: { gradeName: selectedGrade } })} style={{
-                        width: "100%", padding: "6px 10px", border: `1px dashed ${TEAL_B}`,
-                        borderRadius: 8, background: "#F0FDFA", color: TEAL,
-                        fontWeight: 600, fontSize: 11, cursor: "pointer",
-                        fontFamily: "'DM Sans',sans-serif",
-                      }}>
-                        + Add Subject Syllabus
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+                    </button>
+                  );
+                })
+              )}
+              <button onClick={() => setModal({ mode: "add", data: { gradeName: selectedGrade } })} style={{
+                width: "100%", padding: "8px 12px", border: `1px dashed ${TEAL_B}`,
+                borderRadius: 9, background: "#F0FDFA", color: TEAL,
+                fontWeight: 700, fontSize: 12, cursor: "pointer", marginTop: 2,
+                fontFamily: "'DM Sans',sans-serif",
+              }}>
+                + Add Subject Syllabus
+              </button>
+            </div>
           )}
         </div>
 
@@ -924,18 +974,23 @@ export default function Syllabus() {
 
               {/* ── Stats strip ── */}
               {totalCount > 0 && (
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", padding: "14px 20px", background: "#F8FAFC", borderRadius: 12, border: `1px solid ${theme.border}` }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
                   {[
-                    { label: "Total Topics",   value: totalCount,                                                          color: theme.text  },
-                    { label: "Not Started",    value: filteredTopics.filter(t => t.status === "NOT_STARTED").length,       color: "#6B7280"   },
-                    { label: "In Progress",    value: filteredTopics.filter(t => t.status === "IN_PROGRESS").length,       color: "#F59E0B"   },
-                    { label: "Completed",      value: filteredTopics.filter(t => t.status === "COMPLETED").length,         color: "#10B981"   },
-                    { label: "Key Topics",     value: filteredTopics.filter(t => t.isKeyTopic).length,                     color: "#D97706"   },
-                    { label: "References",     value: filteredTopics.reduce((s, t) => s + (t.references?.length || 0), 0), color: "#2563EB"   },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} style={{ textAlign: "center", minWidth: 70 }}>
-                      <div style={{ fontSize: 20, fontWeight: 900, color }}>{value}</div>
-                      <div style={{ fontSize: 10, color: theme.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: .5 }}>{label}</div>
+                    { label: "Total Topics",   value: totalCount,                                                          color: theme.text, icon: "📋" },
+                    { label: "Not Started",    value: filteredTopics.filter(t => t.status === "NOT_STARTED").length,       color: "#6B7280",  icon: "⚪" },
+                    { label: "In Progress",    value: filteredTopics.filter(t => t.status === "IN_PROGRESS").length,       color: "#F59E0B",  icon: "🟡" },
+                    { label: "Completed",      value: filteredTopics.filter(t => t.status === "COMPLETED").length,         color: "#10B981",  icon: "🟢" },
+                    { label: "Key Topics",     value: filteredTopics.filter(t => t.isKeyTopic).length,                     color: "#D97706",  icon: "⭐" },
+                    { label: "References",     value: filteredTopics.reduce((s, t) => s + (t.references?.length || 0), 0), color: "#2563EB",  icon: "🔗" },
+                  ].map(({ label, value, color, icon }) => (
+                    <div key={label} style={{
+                      background: "#fff", border: `1px solid ${theme.border}`, borderRadius: 12,
+                      padding: "12px 14px", display: "flex", flexDirection: "column", gap: 2,
+                      boxShadow: "0 1px 4px rgba(16,24,64,0.05)",
+                    }}>
+                      <div style={{ fontSize: 13 }}>{icon}</div>
+                      <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1.1 }}>{value}</div>
+                      <div style={{ fontSize: 10, color: theme.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: .5 }}>{label}</div>
                     </div>
                   ))}
                 </div>
