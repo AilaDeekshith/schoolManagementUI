@@ -29,8 +29,8 @@ export default function Sidebar({ active, setActive, open, setOpen, allowedIds, 
 
   return (
     <div style={{
-      width: open ? 236 : 68,
-      minWidth: open ? 236 : 68,
+      width: open ? 200 : 60,
+      minWidth: open ? 200 : 60,
       background: "linear-gradient(175deg, #1E1B4B 0%, #312E81 45%, #4C1D95 100%)",
       display: "flex",
       flexDirection: "column",
@@ -166,6 +166,33 @@ export default function Sidebar({ active, setActive, open, setOpen, allowedIds, 
                       >
                         <span style={{ fontSize: 13 }}>{s.icon}</span>
                         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ── Sub-sections when collapsed (icon-only) ── */}
+              {SUBMENUS[m.id] && isActive && !open && (
+                <div style={{ margin: "4px 0 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                  {SUBMENUS[m.id].map((s) => {
+                    const on = (subSections[m.id] ?? SUBMENUS[m.id][0].id) === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => onSubSection?.(m.id, s.id)}
+                        title={s.label}
+                        style={{
+                          width: 34, height: 30, borderRadius: 8,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          cursor: "pointer",
+                          background: on ? "rgba(255,255,255,0.14)" : "transparent",
+                          border: "1px solid " + (on ? "rgba(255,255,255,0.18)" : "transparent"),
+                          color: on ? "#FFFFFF" : "rgba(255,255,255,0.6)",
+                          fontSize: 14,
+                        }}
+                      >
+                        {s.icon}
                       </button>
                     );
                   })}

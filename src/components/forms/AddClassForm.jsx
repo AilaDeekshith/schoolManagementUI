@@ -1,8 +1,9 @@
 // components/forms/AddClassForm.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "../Modal";
 import { FormField, TextInput, SelectInput, FormRow, FormActions } from "../FormField";
 import { theme } from "../../theme";
+import { studentAPI } from "../../api/apiService";
 
 const BLANK = {
   name: "", section: "", room: "",
@@ -22,12 +23,39 @@ export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers
     monitor: initial.monitor === "—" ? "" : (initial.monitor ?? ""),
   } : BLANK);
   const [errors, setErrors] = useState({});
+  const [students, setStudents] = useState([]);   // names of students in the picked class
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const gradeNames = grades.map(g => g.name);
   const sectionLetters = (grades.find(g => g.name === form.name)?.sections ?? []).map(s => s.letter);
   const teacherOptions = teachers.map(t => t.name);
+
+  // The class whose roster feeds the monitor dropdown.
+  const className = form.name ? (form.section ? `${form.name}-${form.section}` : form.name) : "";
+
+  // Fetch the roster of the selected class from the backend whenever it changes.
+  useEffect(() => {
+    if (!className) { setStudents([]); return; }
+    let alive = true;
+    setLoadingStudents(true);
+    studentAPI.getByClass(className)
+      .then(list => { if (alive) setStudents((list ?? []).map(s => s?.name).filter(Boolean)); })
+      .catch(() => { if (alive) setStudents([]); })
+      .finally(() => { if (alive) setLoadingStudents(false); });
+    return () => { alive = false; };
+  }, [className]);
+
+  // Keep an already-assigned monitor selectable even if not (yet) in the fetched list.
+  const monitorOptions = form.monitor && !students.includes(form.monitor)
+    ? [form.monitor, ...students]
+    : students;
+  const monitorPlaceholder = !className
+    ? "— pick a grade first —"
+    : loadingStudents
+      ? "Loading students…"
+      : students.length ? "Select class monitor" : "— no students in this class —";
 
   const validate = () => {
     const e = {};
@@ -60,7 +88,7 @@ export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers
           {field("name", "Grade", true,
             <SelectInput
               value={form.name}
-              onChange={v => { set("name", v); set("section", ""); }}
+              onChange={v => setForm(f => ({ ...f, name: v, section: "", monitor: "" }))}
               placeholder="Select grade"
               options={gradeNames.length ? gradeNames : ["1","2","3","4","5","6","7","8","9","10","11","12"]}
             />
@@ -68,7 +96,7 @@ export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers
           {field("section", "Section", false,
             <SelectInput
               value={form.section}
-              onChange={v => set("section", v)}
+              onChange={v => setForm(f => ({ ...f, section: v, monitor: "" }))}
               placeholder={sectionLetters.length ? "Select section" : "— no sections configured —"}
               options={sectionLetters.length ? sectionLetters : ["A","B","C","D","E"]}
             />
@@ -88,7 +116,13 @@ export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers
             options={teacherOptions} />)}
 
         {field("monitor", "Class Monitor", false,
-          <TextInput value={form.monitor} onChange={v => set("monitor", v)} placeholder="deekshith" />)}
+          <SelectInput
+            value={form.monitor}
+            onChange={v => set("monitor", v)}
+            placeholder={monitorPlaceholder}
+            options={monitorOptions}
+            disabled={!className || loadingStudents || monitorOptions.length === 0}
+          />)}
 
         <FormActions onCancel={onClose} submitLabel={isEdit ? "Update Class" : "Create Class"} />
       </form>

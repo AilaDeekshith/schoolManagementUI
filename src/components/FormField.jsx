@@ -40,12 +40,13 @@ export function TextInput({ value, onChange, placeholder, type = "text" }) {
   );
 }
 
-export function SelectInput({ value, onChange, options, placeholder }) {
+export function SelectInput({ value, onChange, options, placeholder, disabled = false }) {
   return (
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      style={{ ...inputStyle, cursor: "pointer" }}
+      disabled={disabled}
+      style={{ ...inputStyle, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1 }}
       onFocus={e => (e.target.style.borderColor = theme.accent)}
       onBlur={e => (e.target.style.borderColor = theme.border)}
     >
