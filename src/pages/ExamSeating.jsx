@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
 import StickyHeader from "../components/StickyHeader";
-import { examAPI, configAPI, studentAPI, teacherAPI, examSeatingAPI } from "../api/apiService";
+import { examAPI, configAPI, studentAPI, teacherAPI, examSeatingAPI, loadAcademicYears } from "../api/apiService";
 
 // ── helpers ───────────────────────────────────────────────────
 const initials = (name = "") =>
@@ -450,7 +450,7 @@ export default function ExamSeating() {
 
   useEffect(() => {
     teacherAPI.getAll().then(d => setTeachers((d || []).map(t => ({ id: t.id, name: t.name })))).catch(() => {});
-    configAPI.getAcademicYears().then(d => setYears((d || []).map(y => y.year))).catch(() => {});
+    loadAcademicYears().then(({ years, current }) => { setYears(years); if (current) setYearFilter(current); }).catch(() => {});
     // Class options come from the configured grades & sections.
     configAPI.getGrades()
       .then(grades => setClasses((grades || []).flatMap(g =>

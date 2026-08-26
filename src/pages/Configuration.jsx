@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
-import { configAPI, userMgmtAPI, teacherAPI, classAPI } from "../api/apiService";
+import { configAPI, userMgmtAPI, teacherAPI, classAPI, loadAcademicYears } from "../api/apiService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import StickyHeader from "../components/StickyHeader";
@@ -79,19 +79,22 @@ function SummaryStat({ label, value, color, icon, wide }) {
 
 // ── Configured academic years (shared across dropdowns) ───────
 function useAcademicYears() {
-  const [years, setYears] = useState([]);
+  const [meta, setMeta] = useState({ years: [], current: "" });
   useEffect(() => {
-    configAPI.getAcademicYears()
-      .then(list => setYears((list || []).map(y => y.year)))
-      .catch(() => {});
+    loadAcademicYears().then(setMeta).catch(() => {});
   }, []);
-  return years;
+  return meta;
 }
 
 // Dropdown limited to the academic years configured in Configuration → Academic Years.
 // Keeps any pre-existing value that is no longer in the list so records aren't silently changed.
+// Defaults to the current academic year when nothing is selected yet.
 function YearSelect({ value, onChange, required }) {
-  const years = useAcademicYears();
+  const { years, current } = useAcademicYears();
+  useEffect(() => {
+    if (!value && current) onChange({ target: { value: current } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
   const opts = value && !years.includes(value) ? [value, ...years] : years;
   return (
     <select value={value || ""} onChange={onChange} required={required} style={inp()}>
@@ -838,7 +841,13 @@ function CalendarTab() {
   const [modal, setModal]   = useState(null);
   const [filter, setFilter] = useState("ALL");
   const [yearFilter, setYearFilter] = useState(""); // "" = all configured years
-  const years = useAcademicYears();
+  const { years, current } = useAcademicYears();
+  const defaulted = useRef(false);
+
+  // Default the filter to the current academic year once it is known (only once).
+  useEffect(() => {
+    if (!defaulted.current && current) { defaulted.current = true; setYearFilter(current); }
+  }, [current]);
 
   // Academic-year filtering runs in the DB; the type filter below is categorical.
   const load = async (year) => { setLoading(true); setItems(await configAPI.getHolidays(year || undefined).catch(() => [])); setLoading(false); };

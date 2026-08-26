@@ -4,7 +4,7 @@ import { toast } from "../toast";
 import { theme } from "../theme";
 import Modal from "../components/Modal";
 import StickyHeader from "../components/StickyHeader";
-import { examAPI, configAPI, examScheduleAPI } from "../api/apiService";
+import { examAPI, configAPI, examScheduleAPI, loadAcademicYears } from "../api/apiService";
 
 const inp = (extra = {}) => ({
   padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${theme.border}`,
@@ -119,7 +119,7 @@ export default function ExamTimetable() {
 
   useEffect(() => {
     configAPI.getSubjects().then((d) => setSubjects((d || []).map((s) => s.name))).catch(() => {});
-    configAPI.getAcademicYears().then((d) => setYears((d || []).map((y) => y.year))).catch(() => {});
+    loadAcademicYears().then(({ years, current }) => { setYears(years); if (current) setYearFilter(current); }).catch(() => {});
     configAPI.getGrades()
       .then((grades) => setClasses((grades || []).flatMap((g) => (g.sections ?? []).map((s) => `${g.name}-${s.letter}`))))
       .catch(() => {});

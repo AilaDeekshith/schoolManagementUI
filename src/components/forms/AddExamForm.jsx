@@ -7,7 +7,7 @@ import { theme } from "../../theme";
 const FALLBACK_SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer", "P.E."];
 const FALLBACK_CLASSES  = ["6-A", "6-B", "7-A", "7-B", "7-C", "8-A", "8-B", "9-A", "9-B", "10-A", "10-B"];
 
-export default function AddExamForm({ onClose, onAdd, onEdit, initial, classOptions = [], subjectOptions = [], yearOptions = [] }) {
+export default function AddExamForm({ onClose, onAdd, onEdit, initial, classOptions = [], subjectOptions = [], yearOptions = [], defaultYear = "" }) {
   const isEdit = !!initial;
   const classOpts   = classOptions.length ? classOptions : FALLBACK_CLASSES;
   const subjectOpts = subjectOptions.length ? subjectOptions : FALLBACK_SUBJECTS;
@@ -17,7 +17,7 @@ export default function AddExamForm({ onClose, onAdd, onEdit, initial, classOpti
     : yearOptions;
 
   const [name, setName]                 = useState(initial?.name ?? "");
-  const [academicYear, setAcademicYear] = useState(initial?.academicYear ?? "");
+  const [academicYear, setAcademicYear] = useState(initial?.academicYear ?? defaultYear ?? "");
   const [selectedClasses, setSelectedClasses] = useState(initial?.classes ?? []);
   const [selectedSubjects, setSelectedSubjects] = useState(initial?.subjects ?? []);
   const [date, setDate]                 = useState(initial?.date ?? "");

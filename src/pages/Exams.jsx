@@ -7,7 +7,7 @@ import Badge from "../components/Badge";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddExamForm from "../components/forms/AddExamForm";
-import { examAPI, configAPI } from "../api/apiService";
+import { examAPI, configAPI, loadAcademicYears } from "../api/apiService";
 import ExamMarks from "./ExamMarks";
 
 // ── helpers ───────────────────────────────────────────────────
@@ -206,6 +206,7 @@ export default function Exams() {
   const [classOptions, setClassOptions] = useState([]);
   const [subjectOptions, setSubjectOptions] = useState([]);
   const [yearOptions, setYearOptions] = useState([]);
+  const [currentYear, setCurrentYear] = useState(""); // default for new exams + filter
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addOpen, setAddOpen]       = useState(false);
@@ -258,14 +259,15 @@ export default function Exams() {
   };
 
   const loadMeta = async () => {
-    const [gradeData, subjectData, yearData] = await Promise.all([
+    const [gradeData, subjectData, yearMeta] = await Promise.all([
       configAPI.getGrades().catch(() => []),
       configAPI.getSubjects().catch(() => []),
-      configAPI.getAcademicYears().catch(() => []),
+      loadAcademicYears(),
     ]);
     setClassOptions(gradeData.flatMap(g => (g.sections ?? []).map(s => `${g.name}-${s.letter}`)));
     setSubjectOptions((subjectData || []).map(s => s.name));
-    setYearOptions((yearData || []).map(y => y.year));
+    setYearOptions(yearMeta.years);
+    if (yearMeta.current) { setCurrentYear(yearMeta.current); setYearFilter(yearMeta.current); }
   };
 
   const refresh = () => { fetchExams(); refreshCounts(); };
@@ -443,7 +445,7 @@ export default function Exams() {
         ))}
 
       {addOpen && (
-        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} subjectOptions={subjectOptions} yearOptions={yearOptions} />
+        <AddExamForm onClose={() => setAddOpen(false)} onAdd={handleAdd} classOptions={classOptions} subjectOptions={subjectOptions} yearOptions={yearOptions} defaultYear={currentYear} />
       )}
       {editTarget && (
         <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} subjectOptions={subjectOptions} yearOptions={yearOptions} />

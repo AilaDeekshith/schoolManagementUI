@@ -78,7 +78,7 @@ export const EXAM_SECTIONS = [
 
 // Sub-sections shown under the Classes module in the sidebar.
 export const CLASS_SECTIONS = [
-  { id: "classes",    label: "Classes",    icon: "🏫" },
+  { id: "classes",    label: "Class Rooms",    icon: "🏫" },
   { id: "timetable",  label: "Timetable",  icon: "🗓" },
   { id: "attendance", label: "Attendance", icon: "✅" },
 ];
@@ -91,8 +91,8 @@ export const SYLLABUS_SECTIONS = [
 
 // Sub-sections shown under the Fees module in the sidebar.
 export const FEES_SECTIONS = [
-  { id: "list",      label: "Fee Records", icon: "💳" },
   { id: "dashboard", label: "Dashboard",   icon: "📊" },
+  { id: "list",      label: "Fee Records", icon: "💳" },
 ];
 
 export const MODULES = [

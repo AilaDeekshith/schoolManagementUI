@@ -45,7 +45,8 @@ const PAYMENT_METHOD_MAP = {
 
 const toRow = (f) => ({
   id: f.id,
-  studentId: f.student?.id,
+  // Show the same student identifier as the Students page (the generated student code, not the DB id).
+  studentId: f.student?.studentCode,
   name: f.student?.name || "—",
   class: f.student?.className || "—",
   total: Number(f.totalAmount || 0),
@@ -187,7 +188,7 @@ export default function Fees() {
 
   // ── table columns ──────────────────────────────────────────
   const columns = [
-    { key: "studentId", label: "Student ID" },
+    { key: "studentId", label: "Student ID", render: (v) => v || "—" },
     { key: "name", label: "Name" },
     { key: "class", label: "Class" },
     { key: "year", label: "Year" },

@@ -37,7 +37,10 @@ export default function AddClassForm({ onClose, onAdd, onEdit, initial, teachers
 
   // Fetch the roster of the selected class from the backend whenever it changes.
   useEffect(() => {
-    if (!className) { setStudents([]); return; }
+    if (!className) {
+       // eslint-disable-next-line react-hooks/set-state-in-effect
+       setStudents([]);return; 
+    }
     let alive = true;
     setLoadingStudents(true);
     studentAPI.getByClass(className)

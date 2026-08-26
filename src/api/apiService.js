@@ -206,6 +206,26 @@ export const configAPI = {
   deleteAcademicYear:  (id)       => request("DELETE", `/config/academic-years/${id}`),
 };
 
+// ── Academic-year helpers (shared by every year dropdown) ──────
+// Given the raw list of {year, active} objects, returns the "current" academic year:
+// the one flagged active in Configuration, else the one derived from today (Apr–Mar cycle).
+export function pickCurrentAcademicYear(list = []) {
+  const active = list.find((y) => y?.active)?.year;
+  if (active) return active;
+  const now = new Date();
+  const y = now.getFullYear();
+  const start = now.getMonth() >= 3 ? y : y - 1; // academic year starts in April
+  const guess = `${start}-${String(start + 1).slice(2)}`;
+  const years = list.map((y) => y.year);
+  return years.includes(guess) ? guess : (years[0] || "");
+}
+
+// Fetches the configured academic years and the current one in a single call.
+export async function loadAcademicYears() {
+  const list = await configAPI.getAcademicYears().catch(() => []);
+  return { years: (list || []).map((y) => y.year), current: pickCurrentAcademicYear(list || []) };
+}
+
 export const noticesAPI = {
   getAll: ()          => request("GET",    "/notices"),
   create: (data)      => request("POST",   "/notices", data),

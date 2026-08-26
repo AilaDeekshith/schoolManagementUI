@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "../toast";
 import { theme } from "../theme";
-import { syllabusAPI, configAPI } from "../api/apiService";
+import { syllabusAPI, configAPI, loadAcademicYears } from "../api/apiService";
 
 // ── Colour tokens ─────────────────────────────────────────────────────
 const TEAL   = "#0D9488";
@@ -385,9 +385,12 @@ function SyllabusModal({ grades, configSubjects, existingSubjectNames, initial, 
   const [years, setYears] = useState([]);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Academic years come from Configuration → Academic Years.
+  // Academic years come from Configuration → Academic Years; default to the current one.
   useEffect(() => {
-    configAPI.getAcademicYears().then(list => setYears((list || []).map(y => y.year))).catch(() => {});
+    loadAcademicYears().then(({ years, current }) => {
+      setYears(years);
+      if (current) setForm(f => f.academicYear ? f : { ...f, academicYear: current });
+    }).catch(() => {});
   }, []);
 
   const handleSubmit = async e => {
@@ -563,20 +566,24 @@ export default function Syllabus() {
 
   // ── Load config (grades + subjects), then default to a random grade ─
   useEffect(() => {
-    configAPI.getAcademicYears().then(list => setYears((list || []).map(y => y.year))).catch(() => {});
-    Promise.allSettled([configAPI.getGrades(), configAPI.getSubjects()])
-      .then(([g, s]) => {
-        if (s.status === "fulfilled") setConfigSubjects(s.value);
-        if (g.status === "fulfilled") {
-          setGrades(g.value);
-          // Pick a random grade as the initial default selection.
-          if (g.value.length > 0) {
-            const randomGrade = g.value[Math.floor(Math.random() * g.value.length)];
-            selectGrade(randomGrade.name);
-          }
+    (async () => {
+      // Default the year filter to the current academic year.
+      const { years: yrs, current } = await loadAcademicYears();
+      setYears(yrs);
+      if (current) setSelectedYear(current);
+      const [g, s] = await Promise.allSettled([configAPI.getGrades(), configAPI.getSubjects()]);
+      if (s.status === "fulfilled") setConfigSubjects(s.value);
+      if (g.status === "fulfilled") {
+        setGrades(g.value);
+        // Pick a random grade as the initial default selection.
+        if (g.value.length > 0) {
+          const randomGrade = g.value[Math.floor(Math.random() * g.value.length)];
+          setSelectedGrade(randomGrade.name);
+          loadSyllabi(randomGrade.name, current || undefined);
         }
-      })
-      .finally(() => setLoading(false));
+      }
+      setLoading(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

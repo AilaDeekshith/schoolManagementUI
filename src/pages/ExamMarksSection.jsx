@@ -1,7 +1,7 @@
 // pages/ExamMarksSection.jsx — dedicated "Enter Marks" section under Exams
 import { useState, useEffect } from "react";
 import { theme } from "../theme";
-import { examAPI, configAPI } from "../api/apiService";
+import { examAPI, configAPI, loadAcademicYears } from "../api/apiService";
 import StickyHeader from "../components/StickyHeader";
 import ExamMarks from "./ExamMarks";
 
@@ -42,7 +42,7 @@ export default function ExamMarksSection() {
   const [classFilter, setClassFilter] = useState("All");
 
   useEffect(() => {
-    configAPI.getAcademicYears().then((d) => setYears((d || []).map((y) => y.year))).catch(() => {});
+    loadAcademicYears().then(({ years, current }) => { setYears(years); if (current) setYearFilter(current); }).catch(() => {});
     configAPI.getGrades()
       .then((grades) => setClasses((grades || []).flatMap((g) => (g.sections ?? []).map((s) => `${g.name}-${s.letter}`))))
       .catch(() => {});

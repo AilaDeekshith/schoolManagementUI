@@ -71,7 +71,7 @@ function StatsBar({ entries, maxMarks }) {
 }
 
 // ── Results report table ───────────────────────────────────────
-function ResultsReport({ examId, exam }) {
+function ResultsReport({ examId, exam, selClass }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,17 +83,22 @@ function ResultsReport({ examId, exam }) {
   }, [examId]);
 
   if (loading) return <div style={{ color: theme.muted, padding: 24 }}>Loading results…</div>;
+
+  // Restrict the report to the selected class (report shows all classes when none is picked).
+  const shown = selClass ? results.filter(r => r.student?.className === selClass) : results;
+
   if (!results.length) return <div style={{ color: theme.muted, padding: 24 }}>No marks entered yet.</div>;
+  if (!shown.length) return <div style={{ color: theme.muted, padding: 24 }}>No marks entered yet for class {selClass}.</div>;
 
   // Group by student
   const byStudent = {};
-  results.forEach(r => {
+  shown.forEach(r => {
     const sid = r.student.id;
     if (!byStudent[sid]) byStudent[sid] = { student: r.student, bySubject: {} };
     byStudent[sid].bySubject[r.subject] = r;
   });
 
-  const allSubjects = [...new Set(results.map(r => r.subject))].sort();
+  const allSubjects = [...new Set(shown.map(r => r.subject))].sort();
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -476,7 +481,7 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
           )}
 
           {tab === "report" && (
-            <ResultsReport examId={exam.id} exam={exam} />
+            <ResultsReport examId={exam.id} exam={exam} selClass={selClass} />
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 // pages/SyllabusDashboard.jsx — grade-wise syllabus completion overview
 import { useState, useEffect } from "react";
 import { theme, subjectColors } from "../theme";
-import { syllabusAPI, configAPI } from "../api/apiService";
+import { syllabusAPI, configAPI, loadAcademicYears } from "../api/apiService";
 
 // ── Colour tokens (match the Syllabus module teal) ──────────────────────
 const TEAL   = "#0D9488";
@@ -187,19 +187,21 @@ export default function SyllabusDashboard() {
     if (selectedGrade) loadData(selectedGrade, year);
   };
 
-  // Load grades + years, then pick a random default grade on open.
+  // Load grades + years, defaulting the year filter to the current academic year.
   useEffect(() => {
-    configAPI.getAcademicYears().then(list => setYears((list || []).map(y => y.year))).catch(() => {});
-    configAPI.getGrades()
-      .then(gs => {
-        setGrades(gs || []);
-        if (gs && gs.length > 0) {
-          const randomGrade = gs[Math.floor(Math.random() * gs.length)];
-          selectGrade(randomGrade.name);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    (async () => {
+      const { years: yrs, current } = await loadAcademicYears();
+      setYears(yrs);
+      if (current) setSelectedYear(current);
+      const gs = await configAPI.getGrades().catch(() => []);
+      setGrades(gs || []);
+      if (gs && gs.length > 0) {
+        const randomGrade = gs[Math.floor(Math.random() * gs.length)];
+        setSelectedGrade(randomGrade.name);
+        loadData(randomGrade.name, current || undefined);
+      }
+      setLoading(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
