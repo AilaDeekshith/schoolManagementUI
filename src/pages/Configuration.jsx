@@ -104,6 +104,30 @@ function YearSelect({ value, onChange, required }) {
   );
 }
 
+// ── Configured grades (shared across dropdowns) ────────────────
+function useGrades() {
+  const [grades, setGrades] = useState([]);
+  useEffect(() => {
+    configAPI.getGrades().then(setGrades).catch(() => {});
+  }, []);
+  return grades;
+}
+
+// Dropdown limited to the grades configured in Configuration → Grades & Sections.
+// Keeps any pre-existing value that is no longer in the list so records aren't silently changed.
+function GradeSelect({ value, onChange, required }) {
+  const grades = useGrades();
+  const names = grades.map(g => g.name);
+  const opts = value && value !== "All Grades" && !names.includes(value) ? [value, ...names] : names;
+  return (
+    <select value={value || ""} onChange={onChange} required={required} style={inp()}>
+      <option value="">— Select Grade —</option>
+      <option value="All Grades">All Grades</option>
+      {opts.map(g => <option key={g} value={g}>{g}</option>)}
+    </select>
+  );
+}
+
 // ── Modal wrapper ─────────────────────────────────────────────
 function Modal({ title, onClose, children, width = 480 }) {
   return (
@@ -683,7 +707,7 @@ function FeeModal({ initial, onSave, onClose }) {
     <Modal title={initial ? "Edit Fee Entry" : "Add Fee Entry"} onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Grade / Class *"><input required value={form.gradeName} onChange={e => set("gradeName", e.target.value)} placeholder="e.g. Grade 10 or All" style={inp()} /></Field>
+          <Field label="Grade / Class *"><GradeSelect value={form.gradeName} onChange={e => set("gradeName", e.target.value)} required /></Field>
           <Field label="Academic Year *"><YearSelect value={form.academicYear} onChange={e => set("academicYear", e.target.value)} required /></Field>
           <Field label="Amount (₹) *"><input required type="number" value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="e.g. 45000" style={inp()} /></Field>
           <Field label="Category">
