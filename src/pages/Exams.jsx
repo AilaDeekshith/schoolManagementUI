@@ -8,7 +8,6 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import ErrorMessage from "../components/ErrorMessage";
 import AddExamForm from "../components/forms/AddExamForm";
 import { examAPI, configAPI, loadAcademicYears } from "../api/apiService";
-import ExamMarks from "./ExamMarks";
 
 // ── helpers ───────────────────────────────────────────────────
 const statusLabel = (s) =>
@@ -44,7 +43,7 @@ const filterSelSt = {
   outline: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
 };
 
-function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
+function ExamCard({ exam, onStatusChange, onEdit, onDelete }) {
   const [hovered, setHovered] = useState(false);
   const accent = STATUS_COLOR[exam.status] || theme.accent;
 
@@ -175,12 +174,6 @@ function ExamCard({ exam, onStatusChange, onEdit, onDelete, onMarks }) {
         </div>
 
         {/* Actions */}
-        <button
-          onClick={() => onMarks(exam)}
-          style={{ width: "100%", background: theme.accent, color: "#fff", border: "none", borderRadius: 9, padding: "10px 0", cursor: "pointer", fontSize: 13, fontWeight: 700, boxShadow: `0 4px 12px ${theme.accent}33`, marginBottom: 8 }}
-        >
-          ✏️ Enter Marks
-        </button>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => onEdit(exam)}
@@ -211,7 +204,6 @@ export default function Exams() {
   const [error, setError] = useState(null);
   const [addOpen, setAddOpen]       = useState(false);
   const [editTarget, setEditTarget] = useState(null);
-  const [marksExam, setMarksExam]   = useState(null);
   const [filter, setFilter]         = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
   const [classFilter, setClassFilter] = useState("All");
@@ -438,7 +430,6 @@ export default function Exams() {
                 onStatusChange={handleStatusChange}
                 onEdit={setEditTarget}
                 onDelete={handleDelete}
-                onMarks={setMarksExam}
               />
             ))}
           </div>
@@ -449,9 +440,6 @@ export default function Exams() {
       )}
       {editTarget && (
         <AddExamForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} classOptions={classOptions} subjectOptions={subjectOptions} yearOptions={yearOptions} />
-      )}
-      {marksExam && (
-        <ExamMarks exam={marksExam} onClose={() => setMarksExam(null)} />
       )}
     </div>
   );

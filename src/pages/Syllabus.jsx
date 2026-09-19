@@ -745,9 +745,6 @@ export default function Syllabus() {
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <Btn variant="primary" onClick={() => setModal({ mode: "add", data: { gradeName: selectedGrade } })} disabled={grades.length === 0}>
-            + New Syllabus
-          </Btn>
         </div>
       </div>
 

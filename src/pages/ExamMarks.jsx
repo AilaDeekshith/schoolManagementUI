@@ -300,7 +300,7 @@ export default function ExamMarks({ exam, onClose, embedded = false }) {
   }));
 
   const inner = (
-      <div style={{ maxWidth: 1000, margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ maxWidth: embedded ? "100%" : 1000, margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>
 
         {/* ── Header card ── */}
         <div style={{

@@ -69,7 +69,7 @@ function PaperForm({ initial, subjects, classes, onSave, onCancel }) {
   const lbl = { fontSize: 11, fontWeight: 700, color: theme.muted, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 5 };
 
   return (
-    <Modal title={initial?.id ? "Edit Paper" : "Add Paper"} onClose={onCancel}>
+    <Modal title={initial?.id ? "Edit Schedule" : "Add Schedule"} onClose={onCancel}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 16 }}>
           <div style={lbl}>Subject *</div>
@@ -96,7 +96,7 @@ function PaperForm({ initial, subjects, classes, onSave, onCancel }) {
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="submit" style={btn("primary")}>{initial?.id ? "Update Paper" : "Add Paper"}</button>
+          <button type="submit" style={btn("primary")}>{initial?.id ? "Update Schedule" : "Add Schedule"}</button>
           <button type="button" onClick={onCancel} style={btn("ghost")}>Cancel</button>
         </div>
       </form>
@@ -220,7 +220,7 @@ export default function ExamTimetable() {
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: theme.text }}>Timetable for {selectedExam?.name}</div>
-            <button onClick={() => setEditing({})} style={btn("primary", true)}>+ Add Paper</button>
+            <button onClick={() => setEditing({})} style={btn("primary", true)}>+ Add Schedule</button>
           </div>
 
           {editing && (

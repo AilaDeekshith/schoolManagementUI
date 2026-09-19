@@ -14,8 +14,8 @@ import { teacherAPI, timetableAPI } from "../api/apiService";
 const mapStatus = (s) =>
   s === "ACTIVE" ? "Active" : s === "ON_LEAVE" ? "On Leave" : "Inactive";
 
-const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY"];
-const DAY_SHORT = { MONDAY:"Mon", TUESDAY:"Tue", WEDNESDAY:"Wed", THURSDAY:"Thu", FRIDAY:"Fri" };
+const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+const DAY_SHORT = { MONDAY:"Mon", TUESDAY:"Tue", WEDNESDAY:"Wed", THURSDAY:"Thu", FRIDAY:"Fri", SATURDAY:"Sat" };
 
 const toRow = (t) => ({
   id: t.id,
@@ -30,8 +30,8 @@ const toRow = (t) => ({
   photoBase64: t.photoBase64 ?? "",
 });
 
-// ── Teacher Detail Modal ──────────────────────────────────────
-function TeacherDetail({ teacher, onClose }) {
+// ── Teacher Profile (full page — mirrors StudentProfile.jsx) ──
+function TeacherProfile({ teacher, onBack }) {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,60 +50,56 @@ function TeacherDetail({ teacher, onClose }) {
   const initial = (teacher?.name || "").split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase();
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "#1E1B4B99",
-        backdropFilter: "blur(4px)", zIndex: 2000,
-        display: "flex", alignItems: "flex-start", justifyContent: "center",
-        padding: "32px 20px", overflowY: "auto",
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
+    <div style={{ paddingTop: 24 }}>
+      {/* ── Back button ── */}
+      <button
+        onClick={onBack}
         style={{
-          background: "#fff", borderRadius: 18, width: "100%", maxWidth: 760,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.2)", overflow: "hidden",
+          display: "flex", alignItems: "center", gap: 8, marginBottom: 20, justifyContent: "center",
+          background: "transparent", border: `1px solid ${theme.border}`,
+          borderRadius: 8, padding: "8px 16px", cursor: "pointer",
+          color: theme.muted, fontSize: 13, fontWeight: 600,
+          transition: "all 0.15s",
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.color = theme.accent; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = theme.border; e.currentTarget.style.color = theme.muted; }}
       >
-        {/* Header */}
+        ← Back to Teachers
+      </button>
+
+      {/* ── Hero card ── */}
+      <div style={{
+        background: theme.card, border: `1px solid ${theme.border}`,
+        borderRadius: 16, padding: 28, marginBottom: 20,
+        display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap",
+        boxShadow: "0 2px 16px #6C63FF0D",
+      }}>
+        {/* Avatar */}
         <div style={{
-          background: "linear-gradient(135deg, #1E1B4B, #312E81)",
-          padding: "24px 28px", display: "flex", alignItems: "center", gap: 18,
+          width: 90, height: 90, borderRadius: 20,
+          background: teacher.photoBase64 ? "transparent" : "linear-gradient(135deg, #1E1B4B, #312E81)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 34, fontWeight: 900, color: "#fff", flexShrink: 0,
+          boxShadow: "0 4px 16px #6C63FF33", overflow: "hidden",
         }}>
-          <div style={{
-            width: 64, height: 64, borderRadius: 16,
-            background: teacher.photoBase64 ? "transparent" : theme.accent + "33",
-            border: "2px solid rgba(255,255,255,0.2)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 24, fontWeight: 900, color: "#fff",
-            overflow: "hidden",
-          }}>
-            {teacher.photoBase64
-              ? <img src={teacher.photoBase64} alt={teacher.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : initial}
-          </div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#fff" }}>{teacher.name}</h2>
-            <div style={{ color: "#A5B4FC", fontSize: 14, marginTop: 2 }}>{teacher.subject}</div>
-          </div>
-          <Badge status={teacher.status} />
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.1)", border: "none",
-              color: "#fff", borderRadius: 8, width: 32, height: 32,
-              cursor: "pointer", fontSize: 18, display: "flex",
-              alignItems: "center", justifyContent: "center",
-            }}
-          >×</button>
+          {teacher.photoBase64
+            ? <img src={teacher.photoBase64} alt={teacher.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : initial}
         </div>
 
-        <div style={{ padding: 28 }}>
+        {/* Name block */}
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: theme.text }}>{teacher.name}</h2>
+            <Badge status={teacher.status} />
+          </div>
+          <div style={{ color: theme.muted, fontSize: 14, marginTop: 4 }}>
+            Teacher #{teacher.id} &nbsp;·&nbsp; {teacher.subject}
+          </div>
+
           {/* Info grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 20 }}>
             {[
-              { icon: "🆔", label: "Teacher ID", val: teacher.id },
               { icon: "📧", label: "Email", val: teacher.email || "—" },
               { icon: "📞", label: "Contact", val: teacher.contact || "—" },
               { icon: "🎓", label: "Qualification", val: teacher.qualification || "—" },
@@ -122,43 +118,52 @@ function TeacherDetail({ teacher, onClose }) {
               </div>
             ))}
           </div>
-
-          {/* Timetable schedule */}
-          <div style={{ fontSize: 12, fontWeight: 700, color: theme.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>
-            Weekly Schedule
-          </div>
-          {loading ? (
-            <div style={{ color: theme.muted, fontSize: 13 }}>Loading schedule…</div>
-          ) : schedule.length === 0 ? (
-            <div style={{ color: theme.muted, fontSize: 13, padding: "16px 0" }}>No schedule assigned yet.</div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-              {DAYS.map(day => (
-                <div key={day}>
-                  <div style={{
-                    textAlign: "center", fontSize: 11, fontWeight: 700,
-                    color: theme.accent, marginBottom: 6,
-                    padding: "4px 0", background: theme.accent + "12",
-                    borderRadius: 6,
-                  }}>{DAY_SHORT[day]}</div>
-                  {byDay[day].length === 0 ? (
-                    <div style={{ textAlign: "center", fontSize: 11, color: "#d1d5db", padding: "8px 0" }}>—</div>
-                  ) : (
-                    byDay[day].map(slot => (
-                      <div key={slot.id} style={{
-                        background: "#f0f4ff", borderRadius: 8, padding: "6px 8px",
-                        marginBottom: 4, fontSize: 11,
-                      }}>
-                        <div style={{ fontWeight: 700, color: theme.text }}>{slot.subject}</div>
-                        <div style={{ color: theme.muted }}>{slot.className} · P{slot.periodNumber}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* ── Weekly Schedule ── */}
+      <div style={{
+        background: theme.card, border: `1px solid ${theme.border}`,
+        borderRadius: 16, padding: 24,
+        boxShadow: "0 2px 16px #6C63FF0D",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <div style={{ width: 3, height: 18, borderRadius: 2, background: theme.accent }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.muted, fontFamily: "monospace", letterSpacing: 1.5, textTransform: "uppercase" }}>
+            Weekly Schedule
+          </span>
+        </div>
+        {loading ? (
+          <div style={{ color: theme.muted, fontSize: 13 }}>Loading schedule…</div>
+        ) : schedule.length === 0 ? (
+          <div style={{ color: theme.muted, fontSize: 13, padding: "16px 0" }}>No schedule assigned yet.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+            {DAYS.map(day => (
+              <div key={day}>
+                <div style={{
+                  textAlign: "center", fontSize: 11, fontWeight: 700,
+                  color: theme.accent, marginBottom: 6,
+                  padding: "4px 0", background: theme.accent + "12",
+                  borderRadius: 6,
+                }}>{DAY_SHORT[day]}</div>
+                {byDay[day].length === 0 ? (
+                  <div style={{ textAlign: "center", fontSize: 11, color: "#d1d5db", padding: "8px 0" }}>—</div>
+                ) : (
+                  byDay[day].map(slot => (
+                    <div key={slot.id} style={{
+                      background: "#f0f4ff", borderRadius: 8, padding: "6px 8px",
+                      marginBottom: 4, fontSize: 11,
+                    }}>
+                      <div style={{ fontWeight: 700, color: theme.text }}>{slot.subject}</div>
+                      <div style={{ color: theme.muted }}>{slot.className} · P{slot.periodNumber}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -319,6 +324,10 @@ export default function Teachers() {
     }
   };
 
+  if (viewTarget) {
+    return <TeacherProfile teacher={viewTarget} onBack={() => setViewTarget(null)} />;
+  }
+
   return (
     <div>
       <PageHeader
@@ -370,9 +379,6 @@ export default function Teachers() {
       )}
       {editTarget && (
         <AddTeacherForm onClose={() => setEditTarget(null)} onEdit={handleEdit} initial={editTarget} />
-      )}
-      {viewTarget && (
-        <TeacherDetail teacher={viewTarget} onClose={() => setViewTarget(null)} />
       )}
     </div>
   );
